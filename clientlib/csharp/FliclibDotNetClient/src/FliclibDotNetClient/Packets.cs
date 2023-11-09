@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Threading.Tasks;
 using System.Text;
+using System.Threading;
 
 namespace FliclibDotNetClient
 {
@@ -67,7 +68,9 @@ namespace FliclibDotNetClient
 
     internal class CmdCreateConnectionChannel : CommandPacket
     {
-        internal uint ConnId;
+        private static int _nextId;
+
+        internal uint ConnId = (uint)Interlocked.Increment(ref _nextId);
         internal Bdaddr BdAddr;
         internal LatencyMode LatencyMode;
         internal short AutoDisconnectTime;

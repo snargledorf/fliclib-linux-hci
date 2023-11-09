@@ -8,41 +8,18 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Runtime;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace FliclibDotNetClient
 {
-    /// <summary>
-    /// Callback for GetInfo
-    /// </summary>
-    /// <param name="bluetoothControllerState">Bluetooth controller state</param>
-    /// <param name="myBdAddr">The Bluetooth controller's device address</param>
-    /// <param name="myBdAddrType">The type of the Bluetooth controller's device address</param>
-    /// <param name="maxPendingConnections">The maximum number of pending connections (0 if unknown)</param>
-    /// <param name="maxConcurrentlyConnectedButtons">The maximum number of concurrently connected buttons (-1 if unknown)</param>
-    /// <param name="currentPendingConnections">Number of buttons that have at least one active connection channel</param>
-    /// <param name="currentlyNoSpaceForNewConnection">Maximum number of connections is currently reached (only sent by Linux server implementation)</param>
-    /// <param name="verifiedButtons">An array of verified buttons</param>
-    public delegate void GetInfoResponseCallback(GetInfoResponse response);
-
     public record GetInfoResponse(BluetoothControllerState bluetoothControllerState, Bdaddr myBdAddr,
                                            BdAddrType myBdAddrType, byte maxPendingConnections,
                                            short maxConcurrentlyConnectedButtons, byte currentPendingConnections,
                                            bool currentlyNoSpaceForNewConnection,
-                                           Bdaddr[]? verifiedButtons);
+                                           FlicButton[]? verifiedButtons);
 
-    /// <summary>
-    /// Callback for GetButtonInfo
-    /// </summary>
-    /// <param name="bdAddr">The Bluetooth device address for the request</param>
-    /// <param name="uuid">The UUID of the button. Will be null if the button was not verified before.</param>
-    /// <param name="color">The color of the button. Will be null if unknown or the button was not verified before.</param>
-    /// <param name="serialNumber">The serial number of the button. Will be null if the button was not verified before.</param>
-    /// <param name="flicVersion">The Flic version (1 or 2). Will be 0 if the button was not verified before.</param>
-    /// <param name="firmwareVersion">The firmware version of the button. Will be 0 if the button was not verified before.</param>
-    public delegate void GetButtonInfoResponseCallback(GetButtonInfoResponse response);
-
-    public record GetButtonInfoResponse(Bdaddr bdAddr, string? uuid, string? color, string? serialNumber, int flicVersion, uint firmwareVersion);
+    public record GetButtonInfoResponse(Bdaddr Bdaddr, FlicButtonInfo ButtonInfo);
 
     /// <summary>
     /// NewVerifiedButtonEventArgs
@@ -52,7 +29,7 @@ namespace FliclibDotNetClient
         /// <summary>
         /// Bluetooth device address for new verified button
         /// </summary>
-        public Bdaddr BdAddr { get; internal set; }
+        public FlicButton? Button { get; internal set; }
     }
 
     /// <summary>
@@ -109,7 +86,10 @@ namespace FliclibDotNetClient
         private readonly byte[] _lengthReadBuf = new byte[2];
 
         private readonly ConcurrentDictionary<uint, ButtonScanner> _scanners = new();
+
+        private readonly ConcurrentDictionary<uint, TaskCompletionSource<EvtCreateConnectionChannelResponse>> _createConnectionChannelCompletionSources = new();
         private readonly ConcurrentDictionary<uint, ButtonConnectionChannel> _connectionChannels = new();
+
         private readonly ConcurrentDictionary<uint, ScanWizard> _scanWizards = new();
 
         private readonly ConcurrentQueue<TaskCompletionSource<GetInfoResponse>> _getInfoTaskCompletionSourceQueue = new();
@@ -322,17 +302,32 @@ namespace FliclibDotNetClient
         /// If the response was success, button events will be raised when the button is pressed.
         /// </summary>
         /// <param name="channel">A ButtonConnectionChannel</param>
-        public Task AddConnectionChannelAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
+        public async Task<ButtonConnectionChannel> OpenButtonConnectionChannelAsync(FlicButton button, LatencyMode latencyMode = LatencyMode.NormalLatency, short autoDisconnectTime = ButtonConnectionChannel.DefaultAutoDisconnectTime, CancellationToken cancellationToken = default)
         {
-            if (channel == null)
-                throw new ArgumentNullException(nameof(channel));
+            if (button == null)
+                throw new ArgumentNullException(nameof(button), $"{nameof(button)} is null.");
+
+            var tcs = new TaskCompletionSource<EvtCreateConnectionChannelResponse>();
+            cancellationToken.Register(() => tcs.TrySetCanceled());
+
+            var command = new CmdCreateConnectionChannel { BdAddr = button.Bdaddr, LatencyMode = latencyMode, AutoDisconnectTime = autoDisconnectTime };
+
+            if (!_createConnectionChannelCompletionSources.TryAdd(command.ConnId, tcs))
+                throw new InvalidOperationException("Channel id already requested");
+
+            await SendPacketAsync(command, cancellationToken).ConfigureAwait(false);
+
+            var response = await tcs.Task.ConfigureAwait(false);
+
+            if (response.Error != CreateConnectionChannelError.NoError)
+                throw new InvalidOperationException(response.Error.ToString());
+
+            var channel = new ButtonConnectionChannel(response.ConnId, button, latencyMode, autoDisconnectTime);
 
             if (!_connectionChannels.TryAdd(channel.ConnId, channel))
-                throw new ArgumentException("Connection channel already added");
+                throw new InvalidOperationException("Duplicate channel id");
 
-            channel.flicClient = this;
-
-            return SendPacketAsync(new CmdCreateConnectionChannel { ConnId = channel.ConnId, BdAddr = channel.BdAddr, LatencyMode = channel.LatencyMode, AutoDisconnectTime = channel.AutoDisconnectTime }, cancellationToken);
+            return channel;
         }
 
         /// <summary>
@@ -340,7 +335,7 @@ namespace FliclibDotNetClient
         /// Button events will no longer be received after the server has received this command.
         /// </summary>
         /// <param name="channel">A ButtonConnectionChannel</param>
-        public Task RemoveConnectionChannelAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
+        public Task CloseButtonConnectionChannelAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
         {
             if (channel == null)
                 throw new ArgumentNullException(nameof(channel));
@@ -348,7 +343,7 @@ namespace FliclibDotNetClient
             return SendPacketAsync(new CmdRemoveConnectionChannel { ConnId = channel.ConnId }, cancellationToken);
         }
 
-        public Task UpdateConnectionChannelModeParametersAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
+        internal Task UpdateConnectionChannelModeParametersAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
         {
             if (channel == null)
                 throw new ArgumentNullException(nameof(channel));
@@ -484,14 +479,10 @@ namespace FliclibDotNetClient
                     {
                         var pkt = new EvtCreateConnectionChannelResponse();
                         pkt.Parse(packet);
-                        if (pkt.Error != CreateConnectionChannelError.NoError)
+                        
+                        if (_createConnectionChannelCompletionSources.TryGetValue(pkt.ConnId, out var tcs))
                         {
-                            _connectionChannels.TryRemove(pkt.ConnId, out _);
-                        }
-                        else
-                        {
-                            var channel = _connectionChannels[pkt.ConnId];
-                            channel.OnCreateConnectionChannelResponse(new CreateConnectionChannelResponseEventArgs { Error = pkt.Error, ConnectionStatus = pkt.ConnectionStatus });
+                            tcs.TrySetResult(pkt);
                         }
                     }
                     break;
@@ -508,6 +499,7 @@ namespace FliclibDotNetClient
                     {
                         var pkt = new EvtConnectionChannelRemoved();
                         pkt.Parse(packet);
+
                         if (_connectionChannels.TryRemove(pkt.ConnId, out ButtonConnectionChannel? channel))
                             channel.OnRemoved(new ConnectionChannelRemovedEventArgs { RemovedReason = pkt.RemovedReason });
                     }
@@ -542,7 +534,7 @@ namespace FliclibDotNetClient
                     {
                         var pkt = new EvtNewVerifiedButton();
                         pkt.Parse(packet);
-                        NewVerifiedButton?.Invoke(this, new NewVerifiedButtonEventArgs { BdAddr = pkt.BdAddr });
+                        NewVerifiedButton?.Invoke(this, new NewVerifiedButtonEventArgs { Button = new FlicButton(this, pkt.BdAddr) });
                     }
                     break;
                 case EventPacketOpCode.EVT_GET_INFO_RESPONSE_OPCODE:
@@ -551,7 +543,7 @@ namespace FliclibDotNetClient
                         pkt.Parse(packet);
 
                         if (_getInfoTaskCompletionSourceQueue.TryDequeue(out TaskCompletionSource<GetInfoResponse>? taskCompletionSource))
-                            taskCompletionSource.TrySetResult(new(pkt.BluetoothControllerState, pkt.MyBdAddr, pkt.MyBdAddrType, pkt.MaxPendingConnections, pkt.MaxConcurrentlyConnectedButtons, pkt.CurrentPendingConnections, pkt.CurrentlyNoSpaceForNewConnection, pkt.BdAddrOfVerifiedButtons));
+                            taskCompletionSource.TrySetResult(new(pkt.BluetoothControllerState, pkt.MyBdAddr, pkt.MyBdAddrType, pkt.MaxPendingConnections, pkt.MaxConcurrentlyConnectedButtons, pkt.CurrentPendingConnections, pkt.CurrentlyNoSpaceForNewConnection, pkt.BdAddrOfVerifiedButtons?.Select(bdaddr => new FlicButton(this, bdaddr)).ToArray()));
                     }
                     break;
                 case EventPacketOpCode.EVT_NO_SPACE_FOR_NEW_CONNECTION_OPCODE:
@@ -580,7 +572,7 @@ namespace FliclibDotNetClient
                         var pkt = new EvtGetButtonInfoResponse();
                         pkt.Parse(packet);
                         if (_getButtonInfoResponseCallbackQueue.TryDequeue(out TaskCompletionSource<GetButtonInfoResponse>? taskCompletionSource))
-                            taskCompletionSource.TrySetResult(new(pkt.BdAddr, pkt.Uuid, pkt.Color, pkt.SerialNumber, pkt.FlicVersion, pkt.FirmwareVersion));
+                            taskCompletionSource.TrySetResult(new(pkt.BdAddr, new(pkt.Uuid, pkt.Color, pkt.SerialNumber, pkt.FlicVersion, pkt.FirmwareVersion)));
                     }
                     break;
                 case EventPacketOpCode.EVT_SCAN_WIZARD_FOUND_PRIVATE_BUTTON_OPCODE:

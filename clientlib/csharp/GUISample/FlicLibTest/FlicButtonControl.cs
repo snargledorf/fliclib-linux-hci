@@ -13,16 +13,16 @@ namespace FlicLibTest
 {
     public partial class FlicButtonControl : UserControl
     {
-        private readonly Bdaddr bdAddr;
+        private readonly FlicButton button;
         private readonly FlicClient flicClient;
 
-        public FlicButtonControl(Bdaddr bdAddr, FlicClient flicClient)
+        public FlicButtonControl(FlicButton button, FlicClient flicClient)
             : this()
         {
-            this.bdAddr = bdAddr;
+            this.button = button;
             this.flicClient = flicClient;
 
-            lblBdAddr.Text = bdAddr.ToString();
+            lblBdAddr.Text = button.Bdaddr.ToString();
         }
 
         public FlicButtonControl()
@@ -55,46 +55,39 @@ namespace FlicLibTest
         {
             if (chkListen.Checked)
             {
-                Channel = new ButtonConnectionChannel(bdAddr);
-
-                Channel.CreateConnectionChannelResponse += (sender1, eventArgs) =>
+                try
                 {
-                    if (eventArgs.Error != CreateConnectionChannelError.NoError)
+                    Channel = await button.OpenConnectionAsync();
+
+                    Channel.Removed += (sender1, eventArgs) =>
                     {
+                        lblStatus.Text = "Disconnected";
+
                         Listening = false;
-                    }
-                    else
+                    };
+
+                    Channel.ConnectionStatusChanged += (sender1, eventArgs) =>
                     {
                         lblStatus.Text = eventArgs.ConnectionStatus.ToString();
-                    }
-                };
+                    };
 
-                Channel.Removed += (sender1, eventArgs) =>
+                    Channel.ButtonUpOrDown += (sender1, eventArgs) =>
+                    {
+                        pictureBox.BackColor = eventArgs.ClickType == ClickType.ButtonDown ? Color.LimeGreen : Color.Red;
+                    };
+
+                    chkListen.Text = "Stop";
+                }
+                catch
                 {
-                    lblStatus.Text = "Disconnected";
-
                     Listening = false;
-                };
-
-                Channel.ConnectionStatusChanged += (sender1, eventArgs) =>
-                {
-                    lblStatus.Text = eventArgs.ConnectionStatus.ToString();
-                };
-
-                Channel.ButtonUpOrDown += (sender1, eventArgs) =>
-                {
-                    pictureBox.BackColor = eventArgs.ClickType == ClickType.ButtonDown ? Color.LimeGreen : Color.Red;
-                };
-
-                chkListen.Text = "Stop";
-
-                await flicClient.AddConnectionChannelAsync(Channel);
+                }
             }
             else if (Channel != null)
             {
                 chkListen.Text = "Listen";
 
-                await flicClient.RemoveConnectionChannelAsync(Channel);
+                await Channel.CloseAsync();
             }
         }
     }

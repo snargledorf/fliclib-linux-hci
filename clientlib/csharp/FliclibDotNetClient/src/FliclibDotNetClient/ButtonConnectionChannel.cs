@@ -80,78 +80,63 @@ namespace FliclibDotNetClient
     /// </summary>
     public class ButtonConnectionChannel
     {
-        private const int DefaultAutoDisconnectTime = 511;
-
-        private static int _nextId;
-
-        internal uint ConnId = (uint)Interlocked.Increment(ref _nextId);
- 
-        private LatencyMode _latencyMode;
-        private short _autoDisconnectTime;
-        internal FlicClient? flicClient;
+        public const int DefaultAutoDisconnectTime = 511;
 
         /// <summary>
         /// Full Constructor with all options
         /// </summary>
-        /// <param name="bdAddr">Bluetooth device address</param>
+        /// <param name="button">The button associated with this channel</param>
         /// <param name="latencyMode">Latency mode</param>
         /// <param name="autoDisconnectTime">Auto disconnect time</param>
-        public ButtonConnectionChannel(Bdaddr bdAddr, LatencyMode latencyMode = LatencyMode.NormalLatency, short autoDisconnectTime = DefaultAutoDisconnectTime)
+        internal ButtonConnectionChannel(uint connId, FlicButton button, LatencyMode latencyMode = LatencyMode.NormalLatency, short autoDisconnectTime = DefaultAutoDisconnectTime)
         {
-            if (bdAddr == Bdaddr.Blank)
-            {
-                throw new ArgumentNullException(nameof(bdAddr));
-            }
-
-            BdAddr = bdAddr;
-            _latencyMode = latencyMode;
-            _autoDisconnectTime = autoDisconnectTime;
+            ConnId = connId;
+            Button = button ?? throw new ArgumentNullException(nameof(button), $"{nameof(button)} is null.");
+            LatencyMode = latencyMode;
+            AutoDisconnectTime = autoDisconnectTime;
         }
+
+        public uint ConnId { get; }
 
         /// <summary>
         /// Gets the Bluetooth device address that is assigned to this connection channel
         /// </summary>
-        public Bdaddr BdAddr { get; }
+        public FlicButton Button { get; }
 
         /// <summary>
         /// Gets the latency mode for this connection channel
         /// </summary>
-        public LatencyMode LatencyMode => _latencyMode;
-
-        public Task UpdateLatencyModeAsync(LatencyMode latencyMode, CancellationToken cancellationToken = default)
-        {
-            if (latencyMode == _latencyMode)
-                return Task.CompletedTask;
-
-            _latencyMode = latencyMode;
-
-            return UpdateConnectionChannelModeParametersAsync(cancellationToken);
-        }
+        public LatencyMode LatencyMode { get; private set; }
 
         /// <summary>
         /// Gets the auto disconnect time for this connection channel. The new value will be applied the next time the button connects.
         /// </summary>
-        public short AutoDisconnectTime => _autoDisconnectTime;
+        public short AutoDisconnectTime { get; private set; }
+
+        public Task UpdateLatencyModeAsync(LatencyMode latencyMode, CancellationToken cancellationToken = default)
+        {
+            if (latencyMode == LatencyMode)
+                return Task.CompletedTask;
+
+            LatencyMode = latencyMode;
+
+            return UpdateConnectionChannelModeParametersAsync(cancellationToken);
+        }
 
         public Task UpdateAutoDisconnectTimeAsync(short autoDisconnectTime, CancellationToken cancellationToken = default)
         {
-            if (autoDisconnectTime == _autoDisconnectTime)
+            if (autoDisconnectTime == AutoDisconnectTime)
                 return Task.CompletedTask;
 
-            _autoDisconnectTime = autoDisconnectTime;
+            AutoDisconnectTime = autoDisconnectTime;
 
             return UpdateConnectionChannelModeParametersAsync(cancellationToken);
         }
 
         private async Task UpdateConnectionChannelModeParametersAsync(CancellationToken cancellationToken)
         {
-            await (flicClient?.UpdateConnectionChannelModeParametersAsync(this, cancellationToken) ?? Task.CompletedTask).ConfigureAwait(false);
+            await (Button.flicClient.UpdateConnectionChannelModeParametersAsync(this, cancellationToken) ?? Task.CompletedTask).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Event raised when the server has received the request to add this connection channel
-        /// </summary>
-        public event EventHandler<CreateConnectionChannelResponseEventArgs>? CreateConnectionChannelResponse;
 
         /// <summary>
         /// Event raised when the connection channel has been removed at the server
@@ -183,11 +168,6 @@ namespace FliclibDotNetClient
         /// </summary>
         public event EventHandler<ButtonEventEventArgs>? ButtonSingleOrDoubleClickOrHold;
 
-        protected internal virtual void OnCreateConnectionChannelResponse(CreateConnectionChannelResponseEventArgs e)
-        {
-            CreateConnectionChannelResponse?.Invoke(this, e);
-        }
-
         protected internal virtual void OnRemoved(ConnectionChannelRemovedEventArgs e)
         {
             Removed?.Invoke(this, e);
@@ -216,6 +196,11 @@ namespace FliclibDotNetClient
         protected internal virtual void OnButtonSingleOrDoubleClickOrHold(ButtonEventEventArgs e)
         {
             ButtonSingleOrDoubleClickOrHold?.Invoke(this, e);
+        }
+
+        public Task CloseAsync(CancellationToken cancellationToken = default)
+        {
+            return Button.CloseConnectionAsync(this, cancellationToken);
         }
     }
 }
