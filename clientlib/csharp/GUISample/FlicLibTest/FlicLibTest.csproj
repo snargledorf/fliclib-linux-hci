@@ -22,8 +22,6 @@
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="FliclibDotNetClient">
-      <HintPath>..\..\FliclibDotNetClient\artifacts\bin\FliclibDotNetClient\Debug\net6.0\FliclibDotNetClient.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\..\FliclibDotNetClient\src\FliclibDotNetClient\FliclibDotNetClient.csproj" />
   </ItemGroup>
 </Project>
