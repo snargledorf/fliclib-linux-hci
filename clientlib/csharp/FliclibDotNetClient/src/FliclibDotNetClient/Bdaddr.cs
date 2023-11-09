@@ -10,9 +10,8 @@ namespace FliclibDotNetClient
     {
         public static Bdaddr ReadBdaddr(this BinaryReader reader)
         {
-            var buffer = new byte[6];
-            int read = reader.Read(buffer);
-            if (read != 6)
+            var buffer = reader.ReadBytes(6);
+            if (buffer.Length < 6)
                 throw new EndOfStreamException();
 
             return new Bdaddr(buffer);
