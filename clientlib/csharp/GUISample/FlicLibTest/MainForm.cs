@@ -24,7 +24,6 @@ namespace FlicLibTest
     {
         private FlicClient _flicClient;
         private ScanWizard _currentScanWizard;
-        private CancellationTokenSource connectCancellationSource;
 
         public MainForm()
         {
@@ -40,12 +39,10 @@ namespace FlicLibTest
         {
             if (_flicClient == null)
             {
-                connectCancellationSource = new CancellationTokenSource();
-
                 btnConnectDisconnect.Enabled = false;
                 try
                 {
-                    _flicClient = await FlicClient.CreateAsync(txtServer.Text, connectCancellationSource.Token);
+                    _flicClient = await FlicClient.CreateAsync(txtServer.Text);
                 }
                 catch (Exception ex)
                 {
@@ -65,13 +62,20 @@ namespace FlicLibTest
 
                 _flicClient.NewVerifiedButton += (o, args) => GotButton(args.BdAddr);
 
-                Task getInfoTask = DisplayFlicInfoAsync(connectCancellationSource.Token);
+                GetInfoResponse getInfoResponse = await _flicClient.GetInfoAsync();
 
-                Task handleEventsTask = _flicClient.HandleEventsAsync(connectCancellationSource.Token);
+                lblBluetoothStatus.Text = "Bluetooth controller status: " + getInfoResponse.bluetoothControllerState.ToString();
 
-                await Task.WhenAll(handleEventsTask, getInfoTask);
+                foreach (var bdAddr in getInfoResponse.verifiedButtons)
+                {
+                    GotButton(bdAddr);
+                }
+            }
+            else
+            {
+                _flicClient.Disconnect();
 
-                // HandleEvents returns when the socket has disconnected for any reason
+                btnConnectDisconnect.Enabled = false;
 
                 buttonsList.Controls.Clear();
                 btnAddNewFlic.Enabled = false;
@@ -85,75 +89,11 @@ namespace FlicLibTest
                 _currentScanWizard = null;
                 lblScanWizardStatus.Text = "";
             }
-            else
-            {
-                connectCancellationSource?.Cancel();
-                _flicClient.Disconnect();
-                btnConnectDisconnect.Enabled = false;
-            }
-        }
-
-        private async Task DisplayFlicInfoAsync(CancellationToken cancellationToken)
-        {
-            GetInfoResponse getInfoResponse = await _flicClient.GetInfoAsync(cancellationToken);
-
-            lblBluetoothStatus.Text = "Bluetooth controller status: " + getInfoResponse.bluetoothControllerState.ToString();
-
-            foreach (var bdAddr in getInfoResponse.verifiedButtons)
-            {
-                GotButton(bdAddr);
-            }
         }
 
         private void GotButton(Bdaddr bdAddr)
         {
-            var control = new FlicButtonControl();
-            control.lblBdAddr.Text = bdAddr.ToString();
-            control.btnListen.Click += async (o, args) =>
-            {
-                if (!control.Listens)
-                {
-                    control.Listens = true;
-                    control.btnListen.Text = "Stop";
-
-                    control.Channel = new ButtonConnectionChannel(bdAddr);
-                    control.Channel.CreateConnectionChannelResponse += (sender1, eventArgs) => 
-                    {
-                        if (eventArgs.Error != CreateConnectionChannelError.NoError)
-                        {
-                            control.Listens = false;
-                            control.btnListen.Text = "Listen";
-                        }
-                        else
-                        {
-                            control.lblStatus.Text = eventArgs.ConnectionStatus.ToString();
-                        }
-                    };
-
-                    control.Channel.Removed += (sender1, eventArgs) => 
-                    {
-                        control.lblStatus.Text = "Disconnected";
-                        control.Listens = false;
-                        control.btnListen.Text = "Listen";
-                    };
-
-                    control.Channel.ConnectionStatusChanged += (sender1, eventArgs) => 
-                    {
-                        control.lblStatus.Text = eventArgs.ConnectionStatus.ToString();
-                    };
-
-                    control.Channel.ButtonUpOrDown += (sender1, eventArgs) =>
-                    {
-                        control.pictureBox.BackColor = eventArgs.ClickType == ClickType.ButtonDown ? Color.LimeGreen : Color.Red;
-                    };
-
-                    await _flicClient.AddConnectionChannelAsync(control.Channel);
-                }
-                else
-                {
-                    await _flicClient.RemoveConnectionChannelAsync(control.Channel);
-                }
-            };
+            var control = new FlicButtonControl(bdAddr, _flicClient);
             buttonsList.Controls.Add(control);
         }
 

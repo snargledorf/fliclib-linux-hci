@@ -28,70 +28,76 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.lblBdAddr = new System.Windows.Forms.Label();
-            this.lblStatus = new System.Windows.Forms.Label();
-            this.btnListen = new System.Windows.Forms.Button();
-            this.pictureBox = new System.Windows.Forms.PictureBox();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).BeginInit();
-            this.SuspendLayout();
+            lblBdAddr = new System.Windows.Forms.Label();
+            lblStatus = new System.Windows.Forms.Label();
+            pictureBox = new System.Windows.Forms.PictureBox();
+            chkListen = new System.Windows.Forms.CheckBox();
+            ((System.ComponentModel.ISupportInitialize)pictureBox).BeginInit();
+            SuspendLayout();
             // 
             // lblBdAddr
             // 
-            this.lblBdAddr.AutoSize = true;
-            this.lblBdAddr.Location = new System.Drawing.Point(4, 9);
-            this.lblBdAddr.Name = "lblBdAddr";
-            this.lblBdAddr.Size = new System.Drawing.Size(94, 13);
-            this.lblBdAddr.TabIndex = 0;
-            this.lblBdAddr.Text = "00:00:00:00:00:00";
+            lblBdAddr.AutoSize = true;
+            lblBdAddr.Location = new System.Drawing.Point(5, 10);
+            lblBdAddr.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblBdAddr.Name = "lblBdAddr";
+            lblBdAddr.Size = new System.Drawing.Size(94, 15);
+            lblBdAddr.TabIndex = 0;
+            lblBdAddr.Text = "00:00:00:00:00:00";
             // 
             // lblStatus
             // 
-            this.lblStatus.AutoSize = true;
-            this.lblStatus.Location = new System.Drawing.Point(4, 22);
-            this.lblStatus.Name = "lblStatus";
-            this.lblStatus.Size = new System.Drawing.Size(73, 13);
-            this.lblStatus.TabIndex = 1;
-            this.lblStatus.Text = "Disconnected";
-            // 
-            // btnListen
-            // 
-            this.btnListen.Location = new System.Drawing.Point(7, 38);
-            this.btnListen.Name = "btnListen";
-            this.btnListen.Size = new System.Drawing.Size(75, 23);
-            this.btnListen.TabIndex = 2;
-            this.btnListen.Text = "Listen";
-            this.btnListen.UseVisualStyleBackColor = true;
+            lblStatus.AutoSize = true;
+            lblStatus.Location = new System.Drawing.Point(5, 25);
+            lblStatus.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblStatus.Name = "lblStatus";
+            lblStatus.Size = new System.Drawing.Size(79, 15);
+            lblStatus.TabIndex = 1;
+            lblStatus.Text = "Disconnected";
             // 
             // pictureBox
             // 
-            this.pictureBox.BackColor = System.Drawing.Color.Red;
-            this.pictureBox.Location = new System.Drawing.Point(105, 9);
-            this.pictureBox.Name = "pictureBox";
-            this.pictureBox.Size = new System.Drawing.Size(100, 50);
-            this.pictureBox.TabIndex = 3;
-            this.pictureBox.TabStop = false;
+            pictureBox.BackColor = System.Drawing.Color.Red;
+            pictureBox.Location = new System.Drawing.Point(122, 10);
+            pictureBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            pictureBox.Name = "pictureBox";
+            pictureBox.Size = new System.Drawing.Size(117, 58);
+            pictureBox.TabIndex = 3;
+            pictureBox.TabStop = false;
+            // 
+            // chkListen
+            // 
+            chkListen.Appearance = System.Windows.Forms.Appearance.Button;
+            chkListen.Location = new System.Drawing.Point(5, 43);
+            chkListen.Name = "chkListen";
+            chkListen.Size = new System.Drawing.Size(110, 25);
+            chkListen.TabIndex = 4;
+            chkListen.Text = "Listen";
+            chkListen.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            chkListen.UseVisualStyleBackColor = true;
+            chkListen.CheckedChanged += chkListen_CheckedChanged;
             // 
             // FlicButtonControl
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.Controls.Add(this.pictureBox);
-            this.Controls.Add(this.btnListen);
-            this.Controls.Add(this.lblStatus);
-            this.Controls.Add(this.lblBdAddr);
-            this.Name = "FlicButtonControl";
-            this.Size = new System.Drawing.Size(217, 70);
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
-            this.ResumeLayout(false);
-            this.PerformLayout();
-
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            Controls.Add(chkListen);
+            Controls.Add(pictureBox);
+            Controls.Add(lblStatus);
+            Controls.Add(lblBdAddr);
+            Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            Name = "FlicButtonControl";
+            Size = new System.Drawing.Size(253, 81);
+            ((System.ComponentModel.ISupportInitialize)pictureBox).EndInit();
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
 
         public System.Windows.Forms.Label lblBdAddr;
         public System.Windows.Forms.Label lblStatus;
-        public System.Windows.Forms.Button btnListen;
         public System.Windows.Forms.PictureBox pictureBox;
+        private System.Windows.Forms.CheckBox chkListen;
     }
 }

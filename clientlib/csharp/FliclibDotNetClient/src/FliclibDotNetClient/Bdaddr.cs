@@ -13,10 +13,9 @@ namespace FliclibDotNetClient
     {
         public static readonly Bdaddr Blank = default;
 
-        private readonly byte[] _bytes;
+        private readonly byte[] _bytes = new byte[6];
 
-        public Bdaddr() 
-            : this(new byte[6])
+        public Bdaddr()
         {
         }
 

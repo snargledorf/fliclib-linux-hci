@@ -141,8 +141,10 @@ namespace FliclibDotNetClient
         /// </summary>
         public event EventHandler<ButtonDeletedEventArgs>? ButtonDeleted;
 
-        private FlicClient()
+        private FlicClient(TcpClient tcpClient)
         {
+            _tcpClient = tcpClient;
+            _stream = tcpClient.GetStream();
         }
 
         /// <summary>
@@ -168,12 +170,11 @@ namespace FliclibDotNetClient
             var tcpClient = new TcpClient() { NoDelay = true };
             await tcpClient.ConnectAsync(host, port, cancellationToken);
 
-            return InternalCreate(tcpClient);
-        }
+            FlicClient client = new(tcpClient);
 
-        private static FlicClient InternalCreate(TcpClient tcpClient)
-        {
-            return new FlicClient { _tcpClient = tcpClient, _stream = tcpClient.GetStream() };
+            _ = client.HandleEventsAsync(cancellationToken);
+
+            return client;
         }
 
         /// <summary>
