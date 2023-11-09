@@ -10,17 +10,23 @@ namespace FliclibDotNetClient
 {
     internal abstract class CommandPacket
     {
-        protected int Opcode;
+        protected abstract int Opcode { get; }
 
         public byte[] Construct()
         {
-            MemoryStream stream = new MemoryStream();
+            MemoryStream stream = new();
+
             Write(new BinaryWriter(stream));
-            byte[] res = new byte[3 + stream.Length];
+
+            var res = new byte[3 + stream.Length];
+
             res[0] = (byte)(1 + stream.Length);
             res[1] = (byte)((1 + stream.Length) >> 8);
             res[2] = (byte)Opcode;
-            Buffer.BlockCopy(stream.ToArray(), 0, res, 3, (int)stream.Length);
+
+            stream.Position = 0;
+            stream.Read(res.AsSpan()[3..]);
+
             return res;
         }
 
@@ -29,19 +35,20 @@ namespace FliclibDotNetClient
 
     internal class CmdGetInfo : CommandPacket
     {
+        protected override int Opcode => 0;
+
         protected override void Write(BinaryWriter writer)
         {
-            Opcode = 0;
         }
     }
 
     internal class CmdCreateScanner : CommandPacket
     {
         internal uint ScanId;
+        protected override int Opcode => 1;
 
         protected override void Write(BinaryWriter writer)
         {
-            Opcode = 1;
             writer.Write(ScanId);
         }
     }
@@ -50,9 +57,10 @@ namespace FliclibDotNetClient
     {
         internal uint ScanId;
 
+        protected override int Opcode => 2;
+
         protected override void Write(BinaryWriter writer)
         {
-            Opcode = 2;
             writer.Write(ScanId);
         }
     }
@@ -64,11 +72,12 @@ namespace FliclibDotNetClient
         internal LatencyMode LatencyMode;
         internal short AutoDisconnectTime;
 
+        protected override int Opcode => 3;
+
         protected override void Write(BinaryWriter writer)
         {
-            Opcode = 3;
             writer.Write(ConnId);
-            BdAddr.WriteBytes(writer);
+            writer.Write(BdAddr);
             writer.Write((byte)LatencyMode);
             writer.Write(AutoDisconnectTime);
         }
@@ -78,9 +87,10 @@ namespace FliclibDotNetClient
     {
         internal uint ConnId;
 
+        protected override int Opcode => 4;
+
         protected override void Write(BinaryWriter writer)
         {
-            Opcode = 4;
             writer.Write(ConnId);
         }
     }
@@ -89,10 +99,11 @@ namespace FliclibDotNetClient
     {
         internal Bdaddr BdAddr;
 
+        protected override int Opcode => 5;
+
         protected override void Write(BinaryWriter writer)
         {
-            Opcode = 5;
-            BdAddr.WriteBytes(writer);
+            writer.Write(BdAddr);
         }
     }
 
@@ -102,9 +113,10 @@ namespace FliclibDotNetClient
         internal LatencyMode LatencyMode;
         internal short AutoDisconnectTime;
 
+        protected override int Opcode => 6;
+
         protected override void Write(BinaryWriter writer)
         {
-            Opcode = 6;
             writer.Write(ConnId);
             writer.Write((byte)LatencyMode);
             writer.Write(AutoDisconnectTime);
@@ -115,9 +127,10 @@ namespace FliclibDotNetClient
     {
         internal uint PingId;
 
+        protected override int Opcode => 7;
+
         protected override void Write(BinaryWriter writer)
         {
-            Opcode = 7;
             writer.Write(PingId);
         }
     }
@@ -126,10 +139,11 @@ namespace FliclibDotNetClient
     {
         internal Bdaddr BdAddr;
 
+        protected override int Opcode => 8;
+
         protected override void Write(BinaryWriter writer)
         {
-            Opcode = 8;
-            BdAddr.WriteBytes(writer);
+            writer.Write(BdAddr);
         }
     }
 
@@ -137,9 +151,10 @@ namespace FliclibDotNetClient
     {
         internal uint ScanWizardId;
 
+        protected override int Opcode => 9;
+
         protected override void Write(BinaryWriter writer)
         {
-            Opcode = 9;
             writer.Write(ScanWizardId);
         }
     }
@@ -148,9 +163,10 @@ namespace FliclibDotNetClient
     {
         internal uint ScanWizardId;
 
+        protected override int Opcode => 10;
+
         protected override void Write(BinaryWriter writer)
         {
-            Opcode = 10;
             writer.Write(ScanWizardId);
         }
     }
@@ -159,12 +175,14 @@ namespace FliclibDotNetClient
     {
         internal Bdaddr BdAddr;
 
+        protected override int Opcode => 11;
+
         protected override void Write(BinaryWriter writer)
         {
-            Opcode = 11;
-            BdAddr.WriteBytes(writer);
+            writer.Write(BdAddr);
         }
     }
+
     internal enum EventPacketOpCode
     {
         EVT_ADVERTISEMENT_PACKET_OPCODE = 0,
@@ -215,7 +233,7 @@ namespace FliclibDotNetClient
         protected override void ParseInternal(BinaryReader reader)
         {
             ScanId = reader.ReadUInt32();
-            BdAddr = new Bdaddr(reader);
+            BdAddr = reader.ReadBdaddr();
             int nameLen = reader.ReadByte();
             var bytes = new byte[nameLen];
             for (var i = 0; i < nameLen; i++)
@@ -297,7 +315,7 @@ namespace FliclibDotNetClient
 
         protected override void ParseInternal(BinaryReader reader)
         {
-            BdAddr = new Bdaddr(reader);
+            BdAddr = reader.ReadBdaddr();
         }
     }
 
@@ -315,7 +333,7 @@ namespace FliclibDotNetClient
         protected override void ParseInternal(BinaryReader reader)
         {
             BluetoothControllerState = (BluetoothControllerState)reader.ReadByte();
-            MyBdAddr = new Bdaddr(reader);
+            MyBdAddr = reader.ReadBdaddr();
             MyBdAddrType = (BdAddrType)reader.ReadByte();
             MaxPendingConnections = reader.ReadByte();
             MaxConcurrentlyConnectedButtons = reader.ReadInt16();
@@ -325,7 +343,7 @@ namespace FliclibDotNetClient
             BdAddrOfVerifiedButtons = new Bdaddr[nbVerifiedButtons];
             for (var i = 0; i < nbVerifiedButtons; i++)
             {
-                BdAddrOfVerifiedButtons[i] = new Bdaddr(reader);
+                BdAddrOfVerifiedButtons[i] = reader.ReadBdaddr();
             }
         }
     }
@@ -371,7 +389,7 @@ namespace FliclibDotNetClient
 
         protected override void ParseInternal(BinaryReader reader)
         {
-            BdAddr = new Bdaddr(reader);
+            BdAddr = reader.ReadBdaddr();
             var uuidBytes = reader.ReadBytes(16);
             if (uuidBytes.Length != 16)
             {
@@ -440,7 +458,7 @@ namespace FliclibDotNetClient
         protected override void ParseInternal(BinaryReader reader)
         {
             ScanWizardId = reader.ReadUInt32();
-            BdAddr = new Bdaddr(reader);
+            BdAddr = reader.ReadBdaddr();
             int nameLen = reader.ReadByte();
             var bytes = new byte[nameLen];
             for (var i = 0; i < nameLen; i++)
@@ -484,7 +502,7 @@ namespace FliclibDotNetClient
 
         protected override void ParseInternal(BinaryReader reader)
         {
-            BdAddr = new Bdaddr(reader);
+            BdAddr = reader.ReadBdaddr();
             DeletedByThisClient = reader.ReadBoolean();
         }
     }

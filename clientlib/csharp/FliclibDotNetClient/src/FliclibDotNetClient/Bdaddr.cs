@@ -6,6 +6,24 @@ using System.Threading.Tasks;
 
 namespace FliclibDotNetClient
 {
+    public static class BinaryReaderExtension
+    {
+        public static Bdaddr ReadBdaddr(this BinaryReader reader)
+        {
+            var buffer = new byte[6];
+            int read = reader.Read(buffer);
+            if (read != 6)
+                throw new EndOfStreamException();
+
+            return new Bdaddr(buffer);
+        }
+
+        public static void Write(this BinaryWriter writer, Bdaddr bdaddr)
+        {
+            writer.Write(bdaddr.ToBytes());
+        }
+    }
+
     /// <summary>
     /// Represents a Bluetooth device address
     /// </summary>
@@ -13,29 +31,17 @@ namespace FliclibDotNetClient
     {
         public static readonly Bdaddr Blank = default;
 
-        private readonly byte[] _bytes = new byte[6];
-
-        public Bdaddr()
-        {
-        }
-
         public Bdaddr(byte[] bytes)
         {
-            _bytes = bytes;
+            if (bytes.Length != 6)
+                throw new ArgumentException("Buffer too small", nameof(bytes));
+
+            this.bytes = bytes;
         }
 
-        internal Bdaddr(BinaryReader reader)
-            : this()
-        {
-            int read = reader.Read(_bytes);
-            if (read != 6)
-                throw new EndOfStreamException();
-        }
+        private readonly byte[] bytes = new byte[6];
 
-        internal readonly void WriteBytes(BinaryWriter writer)
-        {
-            writer.Write(_bytes);
-        }
+        public byte[] ToBytes() => bytes.AsSpan().ToArray();
 
         public static bool TryParse(string addr, out Bdaddr value)
         {
@@ -71,7 +77,7 @@ namespace FliclibDotNetClient
         /// <returns>A string</returns>
         public override string ToString()
         {
-            return String.Format("{0:x2}:{1:x2}:{2:x2}:{3:x2}:{4:x2}:{5:x2}", _bytes[5], _bytes[4], _bytes[3], _bytes[2], _bytes[1], _bytes[0]);
+            return String.Format("{0:x2}:{1:x2}:{2:x2}:{3:x2}:{4:x2}:{5:x2}", bytes[5], bytes[4], bytes[3], bytes[2], bytes[1], bytes[0]);
         }
 
         public override readonly bool Equals(object? obj)
@@ -94,7 +100,7 @@ namespace FliclibDotNetClient
 
         public readonly bool Equals(Bdaddr other)
         {
-            return Equals(_bytes, other._bytes);
+            return Equals(bytes, other.bytes);
         }
 
         public override readonly int GetHashCode()
@@ -102,8 +108,8 @@ namespace FliclibDotNetClient
             unchecked
             {
                 int hashCode = 47;
-                if (_bytes != null)
-                    hashCode = (hashCode * 53) ^ EqualityComparer<byte[]>.Default.GetHashCode(_bytes);
+                if (bytes != null)
+                    hashCode = (hashCode * 53) ^ EqualityComparer<byte[]>.Default.GetHashCode(bytes);
 
                 return hashCode;
             }
