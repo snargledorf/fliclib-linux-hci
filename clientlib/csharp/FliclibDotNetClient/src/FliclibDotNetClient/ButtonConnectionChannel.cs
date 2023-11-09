@@ -80,12 +80,15 @@ namespace FliclibDotNetClient
     /// </summary>
     public class ButtonConnectionChannel
     {
-        private static int _nextId = 0;
+        private const int DefaultAutoDisconnectTime = 511;
+
+        private static int _nextId;
+
         internal uint ConnId = (uint)Interlocked.Increment(ref _nextId);
-        
+ 
         private LatencyMode _latencyMode;
         private short _autoDisconnectTime;
-        internal FlicClient FlicClient;
+        internal FlicClient? flicClient;
 
         /// <summary>
         /// Full Constructor with all options
@@ -93,9 +96,9 @@ namespace FliclibDotNetClient
         /// <param name="bdAddr">Bluetooth device address</param>
         /// <param name="latencyMode">Latency mode</param>
         /// <param name="autoDisconnectTime">Auto disconnect time</param>
-        public ButtonConnectionChannel(Bdaddr bdAddr, LatencyMode latencyMode, short autoDisconnectTime)
+        public ButtonConnectionChannel(Bdaddr bdAddr, LatencyMode latencyMode = LatencyMode.NormalLatency, short autoDisconnectTime = DefaultAutoDisconnectTime)
         {
-            if (bdAddr == null)
+            if (bdAddr == Bdaddr.Blank)
             {
                 throw new ArgumentNullException(nameof(bdAddr));
             }
@@ -106,133 +109,113 @@ namespace FliclibDotNetClient
         }
 
         /// <summary>
-        /// Constructor that uses default values of latency mode (normal latency) and auto disconnect time (disable auto disconnect mechanism)
-        /// </summary>
-        /// <param name="bdAddr">Bluetooth device address</param>
-        public ButtonConnectionChannel(Bdaddr bdAddr) : this(bdAddr, LatencyMode.NormalLatency, 0x1ff)
-        {
-            
-        }
-
-        /// <summary>
         /// Gets the Bluetooth device address that is assigned to this connection channel
         /// </summary>
-        public Bdaddr BdAddr { get; private set; }
+        public Bdaddr BdAddr { get; }
 
         /// <summary>
-        /// Gets or sets the latency mode for this connection channel
+        /// Gets the latency mode for this connection channel
         /// </summary>
-        public LatencyMode LatencyMode
+        public LatencyMode LatencyMode => _latencyMode;
+
+        public Task UpdateLatencyModeAsync(LatencyMode latencyMode, CancellationToken cancellationToken = default)
         {
-            get
-            {
-                return _latencyMode;
-            }
-            set
-            {
-                if (_latencyMode != value)
-                {
-                    _latencyMode = value;
-                    UpdateMode();
-                }
-            }
+            if (latencyMode == _latencyMode)
+                return Task.CompletedTask;
+
+            _latencyMode = latencyMode;
+
+            return UpdateConnectionChannelModeParametersAsync(cancellationToken);
         }
 
         /// <summary>
-        /// Gets or sets the auto disconnect time for this connection channel. The new value will be applied the next time the button connects.
+        /// Gets the auto disconnect time for this connection channel. The new value will be applied the next time the button connects.
         /// </summary>
-        public short AutoDisconnectTime
+        public short AutoDisconnectTime => _autoDisconnectTime;
+
+        public Task UpdateAutoDisconnectTimeAsync(short autoDisconnectTime, CancellationToken cancellationToken = default)
         {
-            get
-            {
-                return _autoDisconnectTime;
-            }
-            set
-            {
-                if (_autoDisconnectTime != value)
-                {
-                    _autoDisconnectTime = value;
-                    UpdateMode();
-                }
-            }
+            if (autoDisconnectTime == _autoDisconnectTime)
+                return Task.CompletedTask;
+
+            _autoDisconnectTime = autoDisconnectTime;
+
+            return UpdateConnectionChannelModeParametersAsync(cancellationToken);
         }
 
-        private void UpdateMode()
+        private async Task UpdateConnectionChannelModeParametersAsync(CancellationToken cancellationToken)
         {
-            if (FlicClient != null)
-            {
-                FlicClient.SendPacket(new CmdChangeModeParameters { ConnId = ConnId, AutoDisconnectTime = _autoDisconnectTime, LatencyMode = _latencyMode });
-            }
+            await (flicClient?.UpdateConnectionChannelModeParametersAsync(this, cancellationToken) ?? Task.CompletedTask).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Event raised when the server has received the request to add this connection channel
         /// </summary>
-        public event EventHandler<CreateConnectionChannelResponseEventArgs> CreateConnectionChannelResponse;
+        public event EventHandler<CreateConnectionChannelResponseEventArgs>? CreateConnectionChannelResponse;
 
         /// <summary>
         /// Event raised when the connection channel has been removed at the server
         /// </summary>
-        public event EventHandler<ConnectionChannelRemovedEventArgs> Removed;
+        public event EventHandler<ConnectionChannelRemovedEventArgs>? Removed;
 
         /// <summary>
         /// Event raised when the connection status has changed
         /// </summary>
-        public event EventHandler<ConnectionStatusChangedEventArgs> ConnectionStatusChanged;
+        public event EventHandler<ConnectionStatusChangedEventArgs>? ConnectionStatusChanged;
 
         /// <summary>
         /// Used to simply know when the button was pressed or released.
         /// </summary>
-        public event EventHandler<ButtonEventEventArgs> ButtonUpOrDown;
+        public event EventHandler<ButtonEventEventArgs>? ButtonUpOrDown;
 
         /// <summary>
         /// Used if you want to distinguish between click and hold.
         /// </summary>
-        public event EventHandler<ButtonEventEventArgs> ButtonClickOrHold;
+        public event EventHandler<ButtonEventEventArgs>? ButtonClickOrHold;
 
         /// <summary>
         /// Used if you want to distinguish between a single click and a double click.
         /// </summary>
-        public event EventHandler<ButtonEventEventArgs> ButtonSingleOrDoubleClick;
+        public event EventHandler<ButtonEventEventArgs>? ButtonSingleOrDoubleClick;
 
         /// <summary>
         /// Used if you want to distinguish between a single click, a double click and a hold.
         /// </summary>
-        public event EventHandler<ButtonEventEventArgs> ButtonSingleOrDoubleClickOrHold;
+        public event EventHandler<ButtonEventEventArgs>? ButtonSingleOrDoubleClickOrHold;
 
         protected internal virtual void OnCreateConnectionChannelResponse(CreateConnectionChannelResponseEventArgs e)
         {
-            CreateConnectionChannelResponse.RaiseEvent(this, e);
+            CreateConnectionChannelResponse?.Invoke(this, e);
         }
 
         protected internal virtual void OnRemoved(ConnectionChannelRemovedEventArgs e)
         {
-            Removed.RaiseEvent(this, e);
+            Removed?.Invoke(this, e);
         }
 
         protected internal virtual void OnConnectionStatusChanged(ConnectionStatusChangedEventArgs e)
         {
-            ConnectionStatusChanged.RaiseEvent(this, e);
+            ConnectionStatusChanged?.Invoke(this, e);
         }
 
         protected internal virtual void OnButtonUpOrDown(ButtonEventEventArgs e)
         {
-            ButtonUpOrDown.RaiseEvent(this, e);
+            ButtonUpOrDown?.Invoke(this, e);
         }
 
         protected internal virtual void OnButtonClickOrHold(ButtonEventEventArgs e)
         {
-            ButtonClickOrHold.RaiseEvent(this, e);
+            ButtonClickOrHold?.Invoke(this, e);
         }
 
         protected internal virtual void OnButtonSingleOrDoubleClick(ButtonEventEventArgs e)
         {
-            ButtonSingleOrDoubleClick.RaiseEvent(this, e);
+            ButtonSingleOrDoubleClick?.Invoke(this, e);
         }
 
         protected internal virtual void OnButtonSingleOrDoubleClickOrHold(ButtonEventEventArgs e)
         {
-            ButtonSingleOrDoubleClickOrHold.RaiseEvent(this, e);
+            ButtonSingleOrDoubleClickOrHold?.Invoke(this, e);
         }
     }
 }

@@ -165,34 +165,36 @@ namespace FliclibDotNetClient
             BdAddr.WriteBytes(writer);
         }
     }
+    internal enum EventPacketOpCode
+    {
+        EVT_ADVERTISEMENT_PACKET_OPCODE = 0,
+        EVT_CREATE_CONNECTION_CHANNEL_RESPONSE_OPCODE = 1,
+        EVT_CONNECTION_STATUS_CHANGED_OPCODE = 2,
+        EVT_CONNECTION_CHANNEL_REMOVED_OPCODE = 3,
+        EVT_BUTTON_UP_OR_DOWN_OPCODE = 4,
+        EVT_BUTTON_CLICK_OR_HOLD_OPCODE = 5,
+        EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OPCODE = 6,
+        EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OR_HOLD_OPCODE = 7,
+        EVT_NEW_VERIFIED_BUTTON_OPCODE = 8,
+        EVT_GET_INFO_RESPONSE_OPCODE = 9,
+        EVT_NO_SPACE_FOR_NEW_CONNECTION_OPCODE = 10,
+        EVT_GOT_SPACE_FOR_NEW_CONNECTION_OPCODE = 11,
+        EVT_BLUETOOTH_CONTROLLER_STATE_CHANGE_OPCODE = 12,
+        EVT_PING_RESPONSE_OPCODE = 13,
+        EVT_GET_BUTTON_INFO_RESPONSE_OPCODE = 14,
+        EVT_SCAN_WIZARD_FOUND_PRIVATE_BUTTON_OPCODE = 15,
+        EVT_SCAN_WIZARD_FOUND_PUBLIC_BUTTON_OPCODE = 16,
+        EVT_SCAN_WIZARD_BUTTON_CONNECTED_OPCODE = 17,
+        EVT_SCAN_WIZARD_COMPLETED_OPCODE = 18,
+        EVT_BUTTON_DELETED_OPCODE = 19,
+    }
 
     internal abstract class EventPacket
     {
-        internal const int EVT_ADVERTISEMENT_PACKET_OPCODE = 0;
-        internal const int EVT_CREATE_CONNECTION_CHANNEL_RESPONSE_OPCODE = 1;
-        internal const int EVT_CONNECTION_STATUS_CHANGED_OPCODE = 2;
-        internal const int EVT_CONNECTION_CHANNEL_REMOVED_OPCODE = 3;
-        internal const int EVT_BUTTON_UP_OR_DOWN_OPCODE = 4;
-        internal const int EVT_BUTTON_CLICK_OR_HOLD_OPCODE = 5;
-        internal const int EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OPCODE = 6;
-        internal const int EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OR_HOLD_OPCODE = 7;
-        internal const int EVT_NEW_VERIFIED_BUTTON_OPCODE = 8;
-        internal const int EVT_GET_INFO_RESPONSE_OPCODE = 9;
-        internal const int EVT_NO_SPACE_FOR_NEW_CONNECTION_OPCODE = 10;
-        internal const int EVT_GOT_SPACE_FOR_NEW_CONNECTION_OPCODE = 11;
-        internal const int EVT_BLUETOOTH_CONTROLLER_STATE_CHANGE_OPCODE = 12;
-        internal const int EVT_PING_RESPONSE_OPCODE = 13;
-        internal const int EVT_GET_BUTTON_INFO_RESPONSE_OPCODE = 14;
-        internal const int EVT_SCAN_WIZARD_FOUND_PRIVATE_BUTTON_OPCODE = 15;
-        internal const int EVT_SCAN_WIZARD_FOUND_PUBLIC_BUTTON_OPCODE = 16;
-        internal const int EVT_SCAN_WIZARD_BUTTON_CONNECTED_OPCODE = 17;
-        internal const int EVT_SCAN_WIZARD_COMPLETED_OPCODE = 18;
-        internal const int EVT_BUTTON_DELETED_OPCODE = 19;
-        
-        internal void Parse(byte[] arr)
+                
+        internal void Parse(ReadOnlyMemory<byte> arr)
         {
-            var stream = new MemoryStream(arr);
-            stream.ReadByte();
+            var stream = new BufferStream(arr);
             ParseInternal(new BinaryReader(stream));
         }
 
@@ -203,7 +205,7 @@ namespace FliclibDotNetClient
     {
         internal uint ScanId;
         internal Bdaddr BdAddr;
-        internal string Name;
+        internal string? Name;
         internal int Rssi;
         internal bool IsPrivate;
         internal bool AlreadyVerified;
@@ -308,7 +310,7 @@ namespace FliclibDotNetClient
         internal short MaxConcurrentlyConnectedButtons;
         internal byte CurrentPendingConnections;
         internal bool CurrentlyNoSpaceForNewConnection;
-        internal Bdaddr[] BdAddrOfVerifiedButtons;
+        internal Bdaddr[]? BdAddrOfVerifiedButtons;
 
         protected override void ParseInternal(BinaryReader reader)
         {
@@ -361,9 +363,9 @@ namespace FliclibDotNetClient
     internal class EvtGetButtonInfoResponse : EventPacket
     {
         internal Bdaddr BdAddr;
-        internal string Uuid;
-        internal string Color;
-        internal string SerialNumber;
+        internal string? Uuid;
+        internal string? Color;
+        internal string? SerialNumber;
         internal int FlicVersion;
         internal uint FirmwareVersion;
 
@@ -433,7 +435,7 @@ namespace FliclibDotNetClient
     {
         internal uint ScanWizardId;
         internal Bdaddr BdAddr;
-        internal string Name;
+        internal string? Name;
 
         protected override void ParseInternal(BinaryReader reader)
         {

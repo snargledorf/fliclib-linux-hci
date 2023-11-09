@@ -19,7 +19,7 @@ namespace FliclibDotNetClient
         /// <summary>
         /// Advertised name
         /// </summary>
-        public string Name { get; internal set; }
+        public string? Name { get; internal set; }
     }
 
     /// <summary>
@@ -45,48 +45,48 @@ namespace FliclibDotNetClient
         internal uint ScanWizardId = (uint)Interlocked.Increment(ref _nextId);
 
         internal Bdaddr BdAddr;
-        internal string Name;
+        internal string? Name;
 
         /// <summary>
         /// Called at most once when a private button has been found. That means the user should press the Flic button for 7 seconds in order to make it public.
         /// </summary>
-        public event EventHandler FoundPrivateButton;
+        public event EventHandler? FoundPrivateButton;
 
         /// <summary>
         /// Called at most once when a public button has been found. The server will now attempt to connect to the button.
         /// When this event has been received the FoundPrivateButton event will not be raised.
         /// </summary>
-        public event EventHandler<ScanWizardButtonInfoEventArgs> FoundPublicButton;
+        public event EventHandler<ScanWizardButtonInfoEventArgs>? FoundPublicButton;
 
         /// <summary>
         /// Called at most once when a public button has connected. The server will now attempt to pair to the button.
         /// When this event has been received the FoundPrivateButton or FoundPublicButton will not be raised.
         /// </summary>
-        public event EventHandler<ScanWizardButtonInfoEventArgs> ButtonConnected;
+        public event EventHandler<ScanWizardButtonInfoEventArgs>? ButtonConnected;
 
         /// <summary>
         /// Called when the scan wizard has completed for any reason.
         /// </summary>
-        public event EventHandler<ScanWizardCompletedEventArgs> Completed;
+        public event EventHandler<ScanWizardCompletedEventArgs>? Completed;
 
         protected internal virtual void OnFoundPrivateButton()
         {
-            FoundPrivateButton.RaiseEvent(this, EventArgs.Empty);
+            FoundPrivateButton?.Invoke(this, EventArgs.Empty);
         }
 
         protected internal virtual void OnFoundPublicButton(ScanWizardButtonInfoEventArgs e)
         {
-            FoundPublicButton.RaiseEvent(this, e);
+            FoundPublicButton?.Invoke(this, e);
         }
 
         protected internal virtual void OnButtonConnected(ScanWizardButtonInfoEventArgs e)
         {
-            ButtonConnected.RaiseEvent(this, e);
+            ButtonConnected?.Invoke(this, e);
         }
 
         protected internal virtual void OnCompleted(ScanWizardCompletedEventArgs e)
         {
-            Completed.RaiseEvent(this, e);
+            Completed?.Invoke(this, e);
         }
     }
 }

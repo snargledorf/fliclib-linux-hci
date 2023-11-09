@@ -9,37 +9,61 @@ namespace FliclibDotNetClient
     /// <summary>
     /// Represents a Bluetooth device address
     /// </summary>
-    public sealed class Bdaddr
+    public readonly struct Bdaddr : IEquatable<Bdaddr>
     {
+        public static readonly Bdaddr Blank = default;
+
         private readonly byte[] _bytes;
 
-        /// <summary>
-        /// Construct a Bdaddr from a string of the form "xx:xx:xx:xx:xx:xx".
-        /// </summary>
-        /// <param name="addr">Bluetooth device address</param>
-        public Bdaddr(string addr)
+        public Bdaddr() 
+            : this(new byte[6])
         {
-            _bytes = new byte[6];
-            _bytes[5] = Convert.ToByte(addr.Substring(0, 2), 16);
-            _bytes[4] = Convert.ToByte(addr.Substring(3, 2), 16);
-            _bytes[3] = Convert.ToByte(addr.Substring(6, 2), 16);
-            _bytes[2] = Convert.ToByte(addr.Substring(9, 2), 16);
-            _bytes[1] = Convert.ToByte(addr.Substring(12, 2), 16);
-            _bytes[0] = Convert.ToByte(addr.Substring(15, 2), 16);
+        }
+
+        public Bdaddr(byte[] bytes)
+        {
+            _bytes = bytes;
         }
 
         internal Bdaddr(BinaryReader reader)
+            : this()
         {
-            _bytes = reader.ReadBytes(6);
-            if (_bytes.Length != 6)
-            {
+            int read = reader.Read(_bytes);
+            if (read != 6)
                 throw new EndOfStreamException();
+        }
+
+        internal readonly void WriteBytes(BinaryWriter writer)
+        {
+            writer.Write(_bytes);
+        }
+
+        public static bool TryParse(string addr, out Bdaddr value)
+        {
+            try
+            {
+                value = Parse(addr);
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
             }
         }
 
-        internal void WriteBytes(BinaryWriter writer)
+        public static Bdaddr Parse(string addr)
         {
-            writer.Write(_bytes);
+            var bytes = new byte[6];
+
+            bytes[5] = Convert.ToByte(addr.Substring(0, 2), 16);
+            bytes[4] = Convert.ToByte(addr.Substring(3, 2), 16);
+            bytes[3] = Convert.ToByte(addr.Substring(6, 2), 16);
+            bytes[2] = Convert.ToByte(addr.Substring(9, 2), 16);
+            bytes[1] = Convert.ToByte(addr.Substring(12, 2), 16);
+            bytes[0] = Convert.ToByte(addr.Substring(15, 2), 16);
+
+            return new Bdaddr(bytes);
         }
 
         /// <summary>
@@ -51,58 +75,39 @@ namespace FliclibDotNetClient
             return String.Format("{0:x2}:{1:x2}:{2:x2}:{3:x2}:{4:x2}:{5:x2}", _bytes[5], _bytes[4], _bytes[3], _bytes[2], _bytes[1], _bytes[0]);
         }
 
-        /// <summary>
-        /// Gets a hash code
-        /// </summary>
-        /// <returns>Hash code</returns>
-        public override int GetHashCode()
+        public override readonly bool Equals(object? obj)
         {
-            return _bytes[0] ^ (_bytes[1] << 8) ^ (_bytes[2] << 16) ^ (_bytes[3] << 24) ^ (_bytes[4] & 0xff) ^ (_bytes[5] << 8);
+            if (obj is Bdaddr bdaddr)
+                return Equals(bdaddr);
+
+            return base.Equals(obj);
         }
 
-        /// <summary>
-        /// Equals
-        /// </summary>
-        /// <param name="obj">Other object</param>
-        /// <returns>Result</returns>
-        public override bool Equals(object obj)
+        public static bool operator ==(Bdaddr first, Bdaddr second)
         {
-            var bdaddrObj = obj as Bdaddr;
-            if ((object)bdaddrObj == null)
-            {
-                return false;
-            }
-            if (ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-            return _bytes.SequenceEqual(((Bdaddr)obj)._bytes);
+            return first.Equals(second);
         }
 
-        /// <summary>
-        /// Equality check
-        /// </summary>
-        /// <param name="a">First Bdaddr</param>
-        /// <param name="b">Second Bdaddr</param>
-        /// <returns>Result</returns>
-        public static bool operator ==(Bdaddr a, Bdaddr b)
+        public static bool operator !=(Bdaddr first, Bdaddr second)
         {
-            if ((object)a == null)
-            {
-                return (object)b == null;
-            }
-            return a.Equals(b);
+            return !(first == second);
         }
 
-        /// <summary>
-        /// Inequality check
-        /// </summary>
-        /// <param name="a">First Bdaddr</param>
-        /// <param name="b">Second Bdaddr</param>
-        /// <returns>Result</returns>
-        public static bool operator !=(Bdaddr a, Bdaddr b)
+        public readonly bool Equals(Bdaddr other)
         {
-            return !(a == b);
+            return Equals(_bytes, other._bytes);
+        }
+
+        public override readonly int GetHashCode()
+        {
+            unchecked
+            {
+                int hashCode = 47;
+                if (_bytes != null)
+                    hashCode = (hashCode * 53) ^ EqualityComparer<byte[]>.Default.GetHashCode(_bytes);
+
+                return hashCode;
+            }
         }
     }
 }

@@ -59,11 +59,11 @@ namespace FliclibDotNetClient
         /// <summary>
         /// This event will be raised for every advertisement packet received
         /// </summary>
-        public event EventHandler<AdvertisementPacketEventArgs> AdvertisementPacket;
+        public event EventHandler<AdvertisementPacketEventArgs>? AdvertisementPacket;
 
         protected internal virtual void OnAdvertisementPacket(AdvertisementPacketEventArgs e)
         {
-            AdvertisementPacket.RaiseEvent(this, e);
+            AdvertisementPacket?.Invoke(this, e);
         }
     }
 }
