@@ -37,57 +37,68 @@ namespace FlicLibTest
 
         private async void btnConnectDisconnect_Click(object sender, EventArgs e)
         {
-            if (_flicClient == null)
+            try
             {
-                btnConnectDisconnect.Enabled = false;
-                try
+                if (_flicClient == null)
                 {
-                    _flicClient = await FlicClient.CreateAsync(txtServer.Text);
+                    btnConnectDisconnect.Enabled = false;
+
+                    try
+                    {
+                        if (int.TryParse(txtPort.Text, out int port))
+                            _flicClient = new FlicClient(txtServer.Text, port);
+                        else
+                            _flicClient = new FlicClient(txtServer.Text);
+
+                        _flicClient.BluetoothControllerStateChange += (o, args) => lblBluetoothStatus.Text = "Bluetooth controller status: " + args.State.ToString();
+
+                        _flicClient.NewVerifiedButton += async (o, args) => await GotButton(args.Button);
+
+                        await _flicClient.ConnectAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Connect failed: " + ex.Message);
+                        _flicClient = null;
+                        return;
+                    }
+
+                    lblConnectionStatus.Text = "Connection status: Connected";
+                    btnConnectDisconnect.Text = "Disconnect";
+
+                    btnAddNewFlic.Text = "Add new Flic";
+                    btnAddNewFlic.Enabled = true;
+
+                    GetInfoResponse getInfoResponse = await _flicClient.GetInfoAsync();
+
+                    lblBluetoothStatus.Text = "Bluetooth controller status: " + getInfoResponse.bluetoothControllerState.ToString();
+
+                    foreach (var bdAddr in getInfoResponse.verifiedButtons)
+                    {
+                        await GotButton(bdAddr);
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show("Connect failed: " + ex.Message);
-                    btnConnectDisconnect.Enabled = true;
-                    return;
-                }
+                    _flicClient.Disconnect();
+                    _flicClient = null;
+                    _currentScanWizard = null;
 
-                lblConnectionStatus.Text = "Connection status: Connected";
-                btnConnectDisconnect.Text = "Disconnect";
-                btnConnectDisconnect.Enabled = true;
+                    btnConnectDisconnect.Enabled = false;
 
-                btnAddNewFlic.Text = "Add new Flic";
-                btnAddNewFlic.Enabled = true;
+                    buttonsList.Controls.Clear();
+                    btnAddNewFlic.Enabled = false;
 
-                _flicClient.BluetoothControllerStateChange += (o, args) => lblBluetoothStatus.Text = "Bluetooth controller status: " + args.State.ToString();
+                    lblConnectionStatus.Text = "Connection status: Disconnected";
+                    lblBluetoothStatus.Text = "Bluetooth controller status:";
+                    btnConnectDisconnect.Text = "Connect";
 
-                _flicClient.NewVerifiedButton += async (o, args) => await GotButton(args.Button);
-
-                GetInfoResponse getInfoResponse = await _flicClient.GetInfoAsync();
-
-                lblBluetoothStatus.Text = "Bluetooth controller status: " + getInfoResponse.bluetoothControllerState.ToString();
-
-                foreach (var bdAddr in getInfoResponse.verifiedButtons)
-                {
-                    await GotButton(bdAddr);
+                    lblScanWizardStatus.Text = "";
                 }
             }
-            else
+            finally
             {
-                _flicClient.Disconnect();
-
-                btnConnectDisconnect.Enabled = false;
-
-                buttonsList.Controls.Clear();
-                btnAddNewFlic.Enabled = false;
-
-                _flicClient = null;
-                lblConnectionStatus.Text = "Connection status: Disconnected";
-                lblBluetoothStatus.Text = "Bluetooth controller status:";
-                btnConnectDisconnect.Text = "Connect";
                 btnConnectDisconnect.Enabled = true;
-
-                _currentScanWizard = null;
-                lblScanWizardStatus.Text = "";
             }
         }
 

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Runtime;
 using System.Threading;
@@ -80,11 +81,6 @@ namespace FliclibDotNetClient
     /// </summary>
     public sealed class FlicClient : IDisposable
     {
-        private readonly TcpClient? _tcpClient;
-        private readonly NetworkStream? _stream;
-
-        private readonly byte[] _lengthReadBuf = new byte[2];
-
         private readonly ConcurrentDictionary<uint, ButtonScanner> _scanners = new();
 
         private readonly ConcurrentDictionary<uint, TaskCompletionSource<EvtCreateConnectionChannelResponse>> _createConnectionChannelCompletionSources = new();
@@ -96,6 +92,24 @@ namespace FliclibDotNetClient
 
         private readonly ConcurrentQueue<TaskCompletionSource<EvtGetInfoResponse>> _getInfoTaskCompletionSourceQueue = new();
         private readonly ConcurrentDictionary<Bdaddr, TaskCompletionSource<EvtGetButtonInfoResponse>> _getButtonInfoTaskCompletionSources = new();
+
+        private readonly CancellationTokenSource handleEventsCancellationSource = new();
+        
+        private readonly string host;
+        private readonly int port;
+        private readonly TcpClient tcpClient;
+
+        private FlicPacketReader? reader;
+        private FlicPacketWriter? writer;
+
+        private bool disposedValue;
+
+        public FlicClient(string host, int port = 5551)
+        {
+            this.port = port;
+            this.host = host;
+            tcpClient = new TcpClient() { NoDelay = true };
+        }
 
         /// <summary>
         /// Raised when a new button is verified at the server (initiated by any client)
@@ -123,40 +137,15 @@ namespace FliclibDotNetClient
         /// </summary>
         public event EventHandler<ButtonDeletedEventArgs>? ButtonDeleted;
 
-        private FlicClient(TcpClient tcpClient)
+        public async ValueTask ConnectAsync(CancellationToken cancellationToken = default)
         {
-            _tcpClient = tcpClient;
-            _stream = tcpClient.GetStream();
-        }
-
-        /// <summary>
-        /// Connects to a server
-        /// </summary>
-        /// <param name="host">Hostname or IP address</param>
-        /// <returns>A connected FlicClient</returns>
-        /// <exception cref="System.Net.Sockets.SocketException">If a connection couldn't be established</exception>
-        public static Task<FlicClient> CreateAsync(string host, CancellationToken cancellationToken = default)
-        {
-            return CreateAsync(host, 5551, cancellationToken);
-        }
-
-        /// <summary>
-        /// Connects to a server
-        /// </summary>
-        /// <param name="host">Hostname or IP address</param>
-        /// <param name="port">Port</param>
-        /// <returns>A connected FlicClient</returns>
-        /// <exception cref="System.Net.Sockets.SocketException">If a connection couldn't be established</exception>
-        public static async Task<FlicClient> CreateAsync(string host, int port, CancellationToken cancellationToken = default)
-        {
-            var tcpClient = new TcpClient() { NoDelay = true };
             await tcpClient.ConnectAsync(host, port, cancellationToken);
 
-            FlicClient client = new(tcpClient);
+            var stream = tcpClient.GetStream();
+            reader = new FlicPacketReader(stream);
+            writer = new FlicPacketWriter(stream);
 
-            _ = client.HandleEventsAsync(cancellationToken);
-
-            return client;
+            _ = HandleEventsAsync(handleEventsCancellationSource.Token);
         }
 
         /// <summary>
@@ -167,27 +156,6 @@ namespace FliclibDotNetClient
             Dispose();
         }
 
-        /// <summary>
-        /// Disposes the client.
-        /// The socket will be closed. If you for some reason want to close the socket before you call HandleEvents, execute this.
-        /// Otherwise you should rather call Disconnect to make a more graceful disconnection.
-        /// </summary>
-        public void Dispose()
-        {
-            Debug.Assert(_tcpClient != null, $"{nameof(_tcpClient)} is null");
-            Debug.Assert(_stream != null, $"{nameof(_stream)} is null");
-
-            try
-            {
-                _tcpClient.Close();
-                _stream.Close();
-            }
-            catch
-            {
-                // ignored
-            }
-        }
-
         public async Task<GetInfoResponse> GetInfoAsync(CancellationToken cancellationToken = default)
         {
             var tcs = new TaskCompletionSource<EvtGetInfoResponse>();
@@ -196,7 +164,7 @@ namespace FliclibDotNetClient
 
             _getInfoTaskCompletionSourceQueue.Enqueue(tcs);
 
-            await SendPacketAsync(new CmdGetInfo(), cancellationToken).ConfigureAwait(false);
+            await SendCommandAsync(new CmdGetInfo(), cancellationToken).ConfigureAwait(false);
 
             var response = await tcs.Task.ConfigureAwait(false);
 
@@ -241,7 +209,7 @@ namespace FliclibDotNetClient
 
             _getButtonInfoTaskCompletionSources.TryAdd(button.Bdaddr, tcs);
 
-            await SendPacketAsync(new CmdGetButtonInfo() { BdAddr = button.Bdaddr }, cancellationToken).ConfigureAwait(false);
+            await SendCommandAsync(new CmdGetButtonInfo() { BdAddr = button.Bdaddr }, cancellationToken).ConfigureAwait(false);
 
             var response = await tcs.Task.ConfigureAwait(false);
 
@@ -254,7 +222,7 @@ namespace FliclibDotNetClient
         /// The scanner must not already be added.
         /// </summary>
         /// <param name="buttonScanner">A ButtonScanner</param>
-        internal Task StartAsync(ButtonScanner buttonScanner, CancellationToken cancellationToken = default)
+        internal ValueTask StartAsync(ButtonScanner buttonScanner, CancellationToken cancellationToken = default)
         {
             if (buttonScanner == null)
             {
@@ -266,17 +234,17 @@ namespace FliclibDotNetClient
                 throw new ArgumentException("Button scanner already added", nameof(buttonScanner));
             }
 
-            return SendPacketAsync(new CmdCreateScanner { ScanId = buttonScanner.ScanId }, cancellationToken);
+            return SendCommandAsync(new CmdCreateScanner { ScanId = buttonScanner.ScanId }, cancellationToken);
         }
 
-        internal Task StartAsync(ScanWizard scanWizard, CancellationToken cancellationToken = default)
+        internal ValueTask StartAsync(ScanWizard scanWizard, CancellationToken cancellationToken = default)
         {
             if (!_scanWizards.TryAdd(scanWizard.ScanWizardId, scanWizard))
             {
                 throw new ArgumentException("Scan wizard already added");
             }
 
-            return SendPacketAsync(new CmdCreateScanWizard { ScanWizardId = scanWizard.ScanWizardId }, cancellationToken);
+            return SendCommandAsync(new CmdCreateScanWizard { ScanWizardId = scanWizard.ScanWizardId }, cancellationToken);
         }
 
         /// <summary>
@@ -284,14 +252,14 @@ namespace FliclibDotNetClient
         /// The Completed event will be raised with status WizardCancelledByUser, if it already wasn't completed before the server received this command.
         /// </summary>
         /// <param name="scanWizard">A ScanWizard</param>
-        internal Task CancelAsync(ScanWizard scanWizard, CancellationToken cancellationToken = default)
+        internal ValueTask CancelAsync(ScanWizard scanWizard, CancellationToken cancellationToken = default)
         {
             if (scanWizard == null)
             {
                 throw new ArgumentNullException(nameof(scanWizard));
             }
 
-            return SendPacketAsync(new CmdCancelScanWizard { ScanWizardId = scanWizard.ScanWizardId }, cancellationToken);
+            return SendCommandAsync(new CmdCancelScanWizard { ScanWizardId = scanWizard.ScanWizardId }, cancellationToken);
         }
 
         /// <summary>
@@ -300,7 +268,7 @@ namespace FliclibDotNetClient
         /// The scanner must be currently added.
         /// </summary>
         /// <param name="buttonScanner">A ButtonScanner that was previously added</param>
-        internal Task StopAsync(ButtonScanner buttonScanner, CancellationToken cancellationToken = default)
+        internal ValueTask StopAsync(ButtonScanner buttonScanner, CancellationToken cancellationToken = default)
         {
             if (buttonScanner == null)
             {
@@ -312,7 +280,7 @@ namespace FliclibDotNetClient
                 throw new ArgumentException("Button scanner was not added", nameof(buttonScanner));
             }
 
-            return SendPacketAsync(new CmdRemoveScanner { ScanId = buttonScanner.ScanId }, cancellationToken);
+            return SendCommandAsync(new CmdRemoveScanner { ScanId = buttonScanner.ScanId }, cancellationToken);
         }
 
         /// <summary>
@@ -334,7 +302,7 @@ namespace FliclibDotNetClient
             if (!_createConnectionChannelCompletionSources.TryAdd(command.ConnId, tcs))
                 throw new InvalidOperationException("Channel id already requested");
 
-            await SendPacketAsync(command, cancellationToken).ConfigureAwait(false);
+            await SendCommandAsync(command, cancellationToken).ConfigureAwait(false);
 
             var response = await tcs.Task.ConfigureAwait(false);
 
@@ -354,20 +322,20 @@ namespace FliclibDotNetClient
         /// Button events will no longer be received after the server has received this command.
         /// </summary>
         /// <param name="channel">A ButtonConnectionChannel</param>
-        internal Task CloseButtonConnectionChannelAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
+        internal ValueTask CloseButtonConnectionChannelAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
         {
             if (channel == null)
                 throw new ArgumentNullException(nameof(channel));
 
-            return SendPacketAsync(new CmdRemoveConnectionChannel { ConnId = channel.ConnId }, cancellationToken);
+            return SendCommandAsync(new CmdRemoveConnectionChannel { ConnId = channel.ConnId }, cancellationToken);
         }
 
-        internal Task UpdateConnectionChannelModeParametersAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
+        internal ValueTask UpdateConnectionChannelModeParametersAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
         {
             if (channel == null)
                 throw new ArgumentNullException(nameof(channel));
 
-            return SendPacketAsync(new CmdChangeModeParameters { ConnId = channel.ConnId, AutoDisconnectTime = channel.AutoDisconnectTime, LatencyMode = channel.LatencyMode }, cancellationToken);
+            return SendCommandAsync(new CmdChangeModeParameters { ConnId = channel.ConnId, AutoDisconnectTime = channel.AutoDisconnectTime, LatencyMode = channel.LatencyMode }, cancellationToken);
         }
 
         /// <summary>
@@ -375,12 +343,12 @@ namespace FliclibDotNetClient
         /// All connection channels among all clients the server has for this button will be removed.
         /// </summary>
         /// <param name="bdAddr">Bluetooth device address</param>
-        internal Task DisconnectAsync(FlicButton button, CancellationToken cancellationToken = default)
+        internal ValueTask DisconnectAsync(FlicButton button, CancellationToken cancellationToken = default)
         {
             if (button == null)
                 throw new ArgumentNullException(nameof(button), $"{nameof(button)} is null.");
 
-            return SendPacketAsync(new CmdForceDisconnect { BdAddr = button.Bdaddr }, cancellationToken);
+            return SendCommandAsync(new CmdForceDisconnect { BdAddr = button.Bdaddr }, cancellationToken);
         }
 
         internal async Task DeleteAsync(FlicButton flicButton, CancellationToken cancellationToken = default)
@@ -392,111 +360,51 @@ namespace FliclibDotNetClient
             if (!_deleteButtonTaskCompletionSources.TryAdd(flicButton.Bdaddr, tcs))
                 throw new InvalidOperationException($"Delete already requested for {flicButton.Bdaddr}");
 
-            await SendPacketAsync(new CmdDeleteButton { BdAddr = flicButton.Bdaddr }, cancellationToken).ConfigureAwait(false);
+            await SendCommandAsync(new CmdDeleteButton { BdAddr = flicButton.Bdaddr }, cancellationToken).ConfigureAwait(false);
 
-            await tcs.Task;
+            await tcs.Task.ConfigureAwait(false);
         }
 
-        private async Task SendPacketAsync(CommandPacket packet, CancellationToken cancellationToken)
+        private ValueTask SendCommandAsync(FlicCommand command, CancellationToken cancellationToken = default)
         {
-            Debug.Assert(_tcpClient != null, $"{nameof(_tcpClient)} is null");
+            if (disposedValue)
+                throw new ObjectDisposedException(nameof(FlicClient));
 
-            if (!_tcpClient.Connected)
-                return;
+            FlicPacket packet = command.ToPacket();
 
-            var buf = packet.Construct();
+            if (writer == null)
+                throw new InvalidOperationException("Client is not running");
 
-            await SendBufferAsync(buf, cancellationToken).ConfigureAwait(false);
-        }
-
-        private async Task SendBufferAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
-        {
-            Debug.Assert(_stream != null, $"{nameof(_stream)} is null");
-
-            try
-            {
-                await _stream.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
-            }
-            catch (ObjectDisposedException)
-            {
-                // Ignore
-            }
-            catch (SocketException)
-            {
-                Disconnect();
-            }
+            return writer.WritePacketAsync(packet, cancellationToken);
         }
 
         private async Task HandleEventsAsync(CancellationToken cancellationToken = default)
         {
-            Debug.Assert(_tcpClient != null, $"{nameof(_tcpClient)} is null");
-            Debug.Assert(_stream != null, $"{nameof(_stream)} is null");
-
-            byte[]? pkt = null;
-            Memory<byte> packetBuffer;
             try
             {
-                while (_tcpClient.Connected)
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    try
-                    {
-                        var buffer = _lengthReadBuf.AsMemory();
+                    if (reader == null)
+                        throw new InvalidOperationException("Client is not running");
 
-                        var received = await _stream.ReadAsync(buffer, cancellationToken);
-                        if (received == 0)
-                            break;
+                    FlicPacket packet = await reader.ReadPacketAsync(cancellationToken);
 
-                        // Need at least 2 bytes for length
-                        if (received == 1)
-                        {
-                            received = await _stream.ReadAsync(buffer[1..], cancellationToken);
-                            if (received == 0)
-                                break;
-                        }
-
-                        var len = buffer.Span[0] | (buffer.Span[1] << 8);
-
-                        if (len == 0)
-                            continue;
-
-                        if (pkt != null)
-                            ArrayPool<byte>.Shared.Return(pkt);
-
-                        pkt = ArrayPool<byte>.Shared.Rent(len);
-                        packetBuffer = pkt.AsMemory(0, len);
-
-                        var pos = 0;
-                        while (pos < len)
-                        {
-                            received = await _stream.ReadAsync(packetBuffer[pos..], cancellationToken);
-                            if (received == 0)
-                            {
-                                break;
-                            }
-                            pos += received;
-                        }
-                    }
-                    catch (Exception ex) when (ex is IOException or SocketException or ObjectDisposedException or TaskCanceledException or OperationCanceledException)
-                    {
+                    // Check if we have reached the end of the stream
+                    if (packet == FlicPacket.None)
                         break;
-                    }
 
-                    DispatchPacket(packetBuffer);
+                    DispatchPacket(packet);
                 }
             }
-            finally
+            catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
             {
-                if (pkt != null)
-                    ArrayPool<byte>.Shared.Return(pkt);
+                // Ignore
             }
         }
 
-        private void DispatchPacket(ReadOnlyMemory<byte> packet)
+        private void DispatchPacket(FlicPacket packet)
         {
-            EventPacketOpCode opcode = (EventPacketOpCode)packet.Span[0];
-            packet = packet[1..];
-
-            switch (opcode)
+            switch ((EventPacketOpCode)packet.OpCode)
             {
                 case EventPacketOpCode.EVT_ADVERTISEMENT_PACKET_OPCODE:
                     {
@@ -545,21 +453,7 @@ namespace FliclibDotNetClient
                         pkt.Parse(packet);
                         var channel = _connectionChannels[pkt.ConnId];
                         var eventArgs = new ButtonEventEventArgs { ClickType = pkt.ClickType, WasQueued = pkt.WasQueued, TimeDiff = pkt.TimeDiff };
-                        switch (opcode)
-                        {
-                            case EventPacketOpCode.EVT_BUTTON_UP_OR_DOWN_OPCODE:
-                                channel.OnButtonUpOrDown(eventArgs);
-                                break;
-                            case EventPacketOpCode.EVT_BUTTON_CLICK_OR_HOLD_OPCODE:
-                                channel.OnButtonClickOrHold(eventArgs);
-                                break;
-                            case EventPacketOpCode.EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OPCODE:
-                                channel.OnButtonSingleOrDoubleClick(eventArgs);
-                                break;
-                            default: // EventPacketOpCode.EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OR_HOLD_OPCODE:
-                                channel.OnButtonSingleOrDoubleClickOrHold(eventArgs);
-                                break;
-                        }
+                        FireChannelButtonEvent((EventPacketOpCode)packet.OpCode, channel, eventArgs);
                     }
                     break;
                 case EventPacketOpCode.EVT_NEW_VERIFIED_BUTTON_OPCODE:
@@ -660,6 +554,57 @@ namespace FliclibDotNetClient
                     }
                     break;
             }
+        }
+
+        private static void FireChannelButtonEvent(EventPacketOpCode opCode, ButtonConnectionChannel channel, ButtonEventEventArgs eventArgs)
+        {
+            switch (opCode)
+            {
+                case EventPacketOpCode.EVT_BUTTON_UP_OR_DOWN_OPCODE:
+                    channel.OnButtonUpOrDown(eventArgs);
+                    break;
+                case EventPacketOpCode.EVT_BUTTON_CLICK_OR_HOLD_OPCODE:
+                    channel.OnButtonClickOrHold(eventArgs);
+                    break;
+                case EventPacketOpCode.EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OPCODE:
+                    channel.OnButtonSingleOrDoubleClick(eventArgs);
+                    break;
+                case EventPacketOpCode.EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OR_HOLD_OPCODE:
+                    channel.OnButtonSingleOrDoubleClickOrHold(eventArgs);
+                    break;
+                default:
+                    throw new InvalidOperationException($"EventPacketOpCode is not a click event: {opCode}");
+            }
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    handleEventsCancellationSource.Cancel();
+                    tcpClient.Close();
+                }
+
+                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+                // TODO: set large fields to null
+                disposedValue = true;
+            }
+        }
+
+        // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+        // ~FlicClient()
+        // {
+        //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        //     Dispose(disposing: false);
+        // }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

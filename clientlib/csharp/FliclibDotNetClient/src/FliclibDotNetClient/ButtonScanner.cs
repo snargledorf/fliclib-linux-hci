@@ -68,9 +68,9 @@ namespace FliclibDotNetClient
         /// </summary>
         public event EventHandler<AdvertisementPacketEventArgs>? AdvertisementPacket;
 
-        public Task StartAsync(CancellationToken cancellationToken = default) => FlicClient.StartAsync(this, cancellationToken);
+        public ValueTask StartAsync(CancellationToken cancellationToken = default) => FlicClient.StartAsync(this, cancellationToken);
 
-        public Task StopAsync(CancellationToken cancellationToken = default) => FlicClient.StopAsync(this, cancellationToken);
+        public ValueTask StopAsync(CancellationToken cancellationToken = default) => FlicClient.StopAsync(this, cancellationToken);
 
         protected internal virtual void OnAdvertisementPacket(AdvertisementPacketEventArgs e)
         {

@@ -76,9 +76,9 @@ namespace FliclibDotNetClient
         /// </summary>
         public event EventHandler<ScanWizardCompletedEventArgs>? Completed;
 
-        public Task StartAsync(CancellationToken cancellationToken = default) => FlicClient.StartAsync(this, cancellationToken);
+        public ValueTask StartAsync(CancellationToken cancellationToken = default) => FlicClient.StartAsync(this, cancellationToken);
 
-        public Task CancelAsync(CancellationToken cancellationToken = default) => FlicClient.CancelAsync(this, cancellationToken);
+        public ValueTask CancelAsync(CancellationToken cancellationToken = default) => FlicClient.CancelAsync(this, cancellationToken);
 
         protected internal virtual void OnFoundPrivateButton()
         {

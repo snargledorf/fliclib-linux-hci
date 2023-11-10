@@ -34,7 +34,7 @@ namespace FliclibDotNetClient
             return FlicClient.OpenButtonConnectionChannelAsync(this, latencyMode, autoDisconnectTime, cancellationToken: cancellationToken);
         }
 
-        public Task CloseConnectionAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
+        public ValueTask CloseConnectionAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
         {
             return FlicClient.CloseButtonConnectionChannelAsync(channel, cancellationToken);
         }
@@ -44,7 +44,7 @@ namespace FliclibDotNetClient
             return buttonInfo ??= await FlicClient.GetButtonInfoAsync(this, cancellationToken).ConfigureAwait(false);
         }
 
-        public Task DisconnectAsync(CancellationToken cancellationToken = default) => FlicClient.DisconnectAsync(this, cancellationToken);
+        public ValueTask DisconnectAsync(CancellationToken cancellationToken = default) => FlicClient.DisconnectAsync(this, cancellationToken);
 
         public Task DeleteAsync(CancellationToken cancellationToken = default) => FlicClient.DeleteAsync(this, cancellationToken);
     }

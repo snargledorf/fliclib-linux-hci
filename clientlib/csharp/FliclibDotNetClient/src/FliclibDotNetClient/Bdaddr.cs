@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -58,16 +59,15 @@ namespace FliclibDotNetClient
 
         public static Bdaddr Parse(string addr)
         {
-            var bytes = new byte[6];
+            if (addr.Length != 17)
+                throw new FormatException("Invaid address format");
 
-            bytes[5] = Convert.ToByte(addr.Substring(0, 2), 16);
-            bytes[4] = Convert.ToByte(addr.Substring(3, 2), 16);
-            bytes[3] = Convert.ToByte(addr.Substring(6, 2), 16);
-            bytes[2] = Convert.ToByte(addr.Substring(9, 2), 16);
-            bytes[1] = Convert.ToByte(addr.Substring(12, 2), 16);
-            bytes[0] = Convert.ToByte(addr.Substring(15, 2), 16);
+            var parseBuffer = new byte[6];
 
-            return new Bdaddr(bytes);
+            for (int byteIndex = 5, addrIndex = 0; byteIndex >= 0; byteIndex--, addrIndex+=3)
+                parseBuffer[byteIndex] = byte.Parse(addr.Substring(addrIndex, 2), NumberStyles.HexNumber);
+
+            return new Bdaddr(parseBuffer);
         }
 
         /// <summary>
@@ -104,13 +104,9 @@ namespace FliclibDotNetClient
 
         public override readonly int GetHashCode()
         {
-            unchecked
-            {
-                var hc = new HashCode();
-                hc.AddBytes(bytes.AsSpan());
-                int hashCode = hc.ToHashCode();
-                return hashCode;
-            }
+            var hc = new HashCode();
+            hc.AddBytes(bytes.AsSpan());
+            return hc.ToHashCode();
         }
     }
 }

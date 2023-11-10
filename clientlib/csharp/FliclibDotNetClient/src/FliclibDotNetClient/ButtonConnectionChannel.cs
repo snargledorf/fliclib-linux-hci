@@ -180,7 +180,7 @@ namespace FliclibDotNetClient
             ButtonSingleOrDoubleClickOrHold?.Invoke(this, e);
         }
 
-        public Task CloseAsync(CancellationToken cancellationToken = default)
+        public ValueTask CloseAsync(CancellationToken cancellationToken = default)
         {
             return Button.CloseConnectionAsync(this, cancellationToken);
         }

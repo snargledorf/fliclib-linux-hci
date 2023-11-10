@@ -9,32 +9,23 @@ using System.Threading;
 
 namespace FliclibDotNetClient
 {
-    internal abstract class CommandPacket
+    internal abstract class FlicCommand
     {
         protected abstract int Opcode { get; }
 
-        public byte[] Construct()
+        public FlicPacket ToPacket()
         {
-            MemoryStream stream = new();
+            MemoryStream packetData = new();
 
-            Write(new BinaryWriter(stream));
+            Write(new BinaryWriter(packetData));
 
-            var res = new byte[3 + stream.Length];
-
-            res[0] = (byte)(1 + stream.Length);
-            res[1] = (byte)((1 + stream.Length) >> 8);
-            res[2] = (byte)Opcode;
-
-            stream.Position = 0;
-            stream.Read(res.AsSpan()[3..]);
-
-            return res;
+            return new FlicPacket((byte)Opcode, packetData.ToArray());
         }
 
         protected abstract void Write(BinaryWriter writer);
     }
 
-    internal class CmdGetInfo : CommandPacket
+    internal class CmdGetInfo : FlicCommand
     {
         protected override int Opcode => 0;
 
@@ -43,7 +34,7 @@ namespace FliclibDotNetClient
         }
     }
 
-    internal class CmdCreateScanner : CommandPacket
+    internal class CmdCreateScanner : FlicCommand
     {
         internal uint ScanId;
         protected override int Opcode => 1;
@@ -54,7 +45,7 @@ namespace FliclibDotNetClient
         }
     }
 
-    internal class CmdRemoveScanner : CommandPacket
+    internal class CmdRemoveScanner : FlicCommand
     {
         internal uint ScanId;
 
@@ -66,7 +57,7 @@ namespace FliclibDotNetClient
         }
     }
 
-    internal class CmdCreateConnectionChannel : CommandPacket
+    internal class CmdCreateConnectionChannel : FlicCommand
     {
         private static int _nextId;
 
@@ -86,7 +77,7 @@ namespace FliclibDotNetClient
         }
     }
 
-    internal class CmdRemoveConnectionChannel : CommandPacket
+    internal class CmdRemoveConnectionChannel : FlicCommand
     {
         internal uint ConnId;
 
@@ -98,7 +89,7 @@ namespace FliclibDotNetClient
         }
     }
 
-    internal class CmdForceDisconnect : CommandPacket
+    internal class CmdForceDisconnect : FlicCommand
     {
         internal Bdaddr BdAddr;
 
@@ -110,7 +101,7 @@ namespace FliclibDotNetClient
         }
     }
 
-    internal class CmdChangeModeParameters : CommandPacket
+    internal class CmdChangeModeParameters : FlicCommand
     {
         internal uint ConnId;
         internal LatencyMode LatencyMode;
@@ -126,7 +117,7 @@ namespace FliclibDotNetClient
         }
     }
 
-    internal class CmdPing : CommandPacket
+    internal class CmdPing : FlicCommand
     {
         internal uint PingId;
 
@@ -138,7 +129,7 @@ namespace FliclibDotNetClient
         }
     }
 
-    internal class CmdGetButtonInfo : CommandPacket
+    internal class CmdGetButtonInfo : FlicCommand
     {
         internal Bdaddr BdAddr;
 
@@ -150,7 +141,7 @@ namespace FliclibDotNetClient
         }
     }
 
-    internal class CmdCreateScanWizard : CommandPacket
+    internal class CmdCreateScanWizard : FlicCommand
     {
         private static int _nextId = 0;
         internal uint ScanWizardId = (uint)Interlocked.Increment(ref _nextId);
@@ -163,7 +154,7 @@ namespace FliclibDotNetClient
         }
     }
 
-    internal class CmdCancelScanWizard : CommandPacket
+    internal class CmdCancelScanWizard : FlicCommand
     {
         internal uint ScanWizardId;
 
@@ -175,7 +166,7 @@ namespace FliclibDotNetClient
         }
     }
 
-    internal class CmdDeleteButton : CommandPacket
+    internal class CmdDeleteButton : FlicCommand
     {
         internal Bdaddr BdAddr;
 
@@ -187,7 +178,7 @@ namespace FliclibDotNetClient
         }
     }
 
-    internal enum EventPacketOpCode
+    internal enum EventPacketOpCode : byte
     {
         EVT_ADVERTISEMENT_PACKET_OPCODE = 0,
         EVT_CREATE_CONNECTION_CHANNEL_RESPONSE_OPCODE = 1,
@@ -213,10 +204,9 @@ namespace FliclibDotNetClient
 
     internal abstract class EventPacket
     {
-                
-        internal void Parse(ReadOnlyMemory<byte> arr)
+        internal void Parse(FlicPacket packet)
         {
-            var stream = new BufferStream(arr);
+            var stream = new ReadOnlyMemoryStream(packet.Data);
             ParseInternal(new BinaryReader(stream));
         }
 

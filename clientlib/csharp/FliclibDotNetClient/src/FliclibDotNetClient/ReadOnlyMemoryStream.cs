@@ -3,12 +3,12 @@ using System.IO;
 
 namespace FliclibDotNetClient
 {
-    internal class BufferStream : Stream
+    internal class ReadOnlyMemoryStream : Stream
     {
         private readonly ReadOnlyMemory<byte> buffer;
         private ReadOnlyMemory<byte> readBuffer;
 
-        public BufferStream(ReadOnlyMemory<byte> buffer)
+        public ReadOnlyMemoryStream(ReadOnlyMemory<byte> buffer)
         {
             this.buffer = buffer;
             readBuffer = buffer;
