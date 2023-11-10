@@ -54,6 +54,10 @@ namespace FlicLibTest
 
                         _flicClient.NewVerifiedButton += async (o, args) => await GotButton(args.Button);
 
+                        _flicClient.OnDisconnect += (_, _) => OnClientDisconnected();
+
+                        _flicClient.OnException += (_, ex) => MessageBox.Show("Unexpected exception from client: " + ex.Message);
+
                         await _flicClient.ConnectAsync();
                     }
                     catch (Exception ex)
@@ -81,25 +85,29 @@ namespace FlicLibTest
                 else
                 {
                     _flicClient.Disconnect();
-                    _flicClient = null;
-                    _currentScanWizard = null;
-
-                    btnConnectDisconnect.Enabled = false;
-
-                    buttonsList.Controls.Clear();
-                    btnAddNewFlic.Enabled = false;
-
-                    lblConnectionStatus.Text = "Connection status: Disconnected";
-                    lblBluetoothStatus.Text = "Bluetooth controller status:";
-                    btnConnectDisconnect.Text = "Connect";
-
-                    lblScanWizardStatus.Text = "";
                 }
             }
             finally
             {
                 btnConnectDisconnect.Enabled = true;
             }
+        }
+
+        private void OnClientDisconnected()
+        {
+            _flicClient = null;
+            _currentScanWizard = null;
+
+            buttonsList.Controls.Clear();
+            btnAddNewFlic.Enabled = false;
+
+            lblConnectionStatus.Text = "Connection status: Disconnected";
+            lblBluetoothStatus.Text = "Bluetooth controller status:";
+            btnConnectDisconnect.Text = "Connect";
+
+            lblScanWizardStatus.Text = "";
+
+            btnConnectDisconnect.Enabled = true;
         }
 
         private async Task GotButton(FlicButton button)

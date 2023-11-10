@@ -132,6 +132,10 @@ namespace FliclibDotNetClient
         /// </summary>
         public event EventHandler<SpaceForNewConnectionEventArgs>? GotSpaceForNewConnection;
 
+        public event EventHandler OnDisconnect;
+
+        public event EventHandler<Exception> OnException;
+
         /// <summary>
         /// Raised when a button is deleted, or when this client tries to delete a non-existing button.
         /// </summary>
@@ -154,6 +158,8 @@ namespace FliclibDotNetClient
         public void Disconnect()
         {
             Dispose();
+
+            FireOnDisconnectEvent();
         }
 
         public async Task<GetInfoResponse> GetInfoAsync(CancellationToken cancellationToken = default)
@@ -400,6 +406,11 @@ namespace FliclibDotNetClient
             {
                 // Ignore
             }
+            catch (Exception ex)
+            {
+                Disconnect();
+                FireOnExceptionEvent(ex);
+            }
         }
 
         private void DispatchPacket(FlicPacket packet)
@@ -575,6 +586,16 @@ namespace FliclibDotNetClient
                 default:
                     throw new InvalidOperationException($"EventPacketOpCode is not a click event: {opCode}");
             }
+        }
+
+        private void FireOnExceptionEvent(Exception ex)
+        {
+            OnException?.Invoke(this, ex);
+        }
+
+        private void FireOnDisconnectEvent()
+        {
+            OnDisconnect?.Invoke(this, EventArgs.Empty);
         }
 
         private void Dispose(bool disposing)
