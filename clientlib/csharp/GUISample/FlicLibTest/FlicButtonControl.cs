@@ -1,11 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Drawing;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using FliclibDotNetClient;
 
@@ -14,13 +8,11 @@ namespace FlicLibTest
     public partial class FlicButtonControl : UserControl
     {
         private readonly FlicButton button;
-        private readonly FlicClient flicClient;
 
-        public FlicButtonControl(FlicButton button, FlicClient flicClient)
+        public FlicButtonControl(FlicButton button)
             : this()
         {
-            this.button = button;
-            this.flicClient = flicClient;
+            this.button = button ?? throw new ArgumentNullException(nameof(button));
 
             lblBdAddr.Text = button.Bdaddr.ToString();
         }
@@ -40,8 +32,13 @@ namespace FlicLibTest
             set
             {
                 chkListen.CheckedChanged -= chkListen_CheckedChanged;
-                chkListen.Checked = false;
+                chkListen.Checked = value;
                 chkListen.CheckedChanged += chkListen_CheckedChanged;
+
+                if (value)
+                    chkListen.Text = "Stop";
+                else
+                    chkListen.Text = "Listen";
             }
         }
 
@@ -76,7 +73,7 @@ namespace FlicLibTest
                         pictureBox.BackColor = eventArgs.ClickType == ClickType.ButtonDown ? Color.LimeGreen : Color.Red;
                     };
 
-                    chkListen.Text = "Stop";
+                    Listening = true;
                 }
                 catch
                 {
@@ -85,7 +82,7 @@ namespace FlicLibTest
             }
             else if (Channel != null)
             {
-                chkListen.Text = "Listen";
+                Listening = false;
 
                 await Channel.CloseAsync();
             }

@@ -60,7 +60,7 @@ namespace FlicLibTest
 
                 _flicClient.BluetoothControllerStateChange += (o, args) => lblBluetoothStatus.Text = "Bluetooth controller status: " + args.State.ToString();
 
-                _flicClient.NewVerifiedButton += (o, args) => GotButton(args.Button);
+                _flicClient.NewVerifiedButton += async (o, args) => await GotButton(args.Button);
 
                 GetInfoResponse getInfoResponse = await _flicClient.GetInfoAsync();
 
@@ -68,7 +68,7 @@ namespace FlicLibTest
 
                 foreach (var bdAddr in getInfoResponse.verifiedButtons)
                 {
-                    GotButton(bdAddr);
+                    await GotButton(bdAddr);
                 }
             }
             else
@@ -91,9 +91,19 @@ namespace FlicLibTest
             }
         }
 
-        private void GotButton(FlicButton button)
+        private async Task GotButton(FlicButton button)
         {
-            var control = new FlicButtonControl(button, _flicClient);
+            var control = new FlicButtonControl(button);
+
+            var bi = await button.GetButtonInfoAsync();
+
+            switch (bi.Color)
+            {
+                case "white":
+                    control.BackColor = Color.White;
+                    break;
+            }
+
             buttonsList.Controls.Add(control);
         }
 

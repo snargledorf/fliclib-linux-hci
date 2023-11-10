@@ -93,7 +93,7 @@ namespace FliclibDotNetClient
         private readonly ConcurrentDictionary<uint, ScanWizard> _scanWizards = new();
 
         private readonly ConcurrentQueue<TaskCompletionSource<GetInfoResponse>> _getInfoTaskCompletionSourceQueue = new();
-        private readonly ConcurrentQueue<TaskCompletionSource<GetButtonInfoResponse>> _getButtonInfoResponseCallbackQueue = new();
+        private readonly ConcurrentQueue<TaskCompletionSource<EvtGetButtonInfoResponse>> _getButtonInfoResponseCallbackQueue = new();
 
         /// <summary>
         /// Raised when a new button is verified at the server (initiated by any client)
@@ -205,9 +205,9 @@ namespace FliclibDotNetClient
         /// </summary>
         /// <param name="bdAddr">Bluetooth device address</param>
         /// <param name="callback">Callback to be invoked when the response arrives</param>
-        public async Task<GetButtonInfoResponse> GetButtonInfoAsync(Bdaddr bdAddr, CancellationToken cancellationToken = default)
+        public async Task<FlicButtonInfo> GetButtonInfoAsync(Bdaddr bdAddr, CancellationToken cancellationToken = default)
         {
-            var tcs = new TaskCompletionSource<GetButtonInfoResponse>();
+            var tcs = new TaskCompletionSource<EvtGetButtonInfoResponse>();
 
             cancellationToken.Register(() => tcs.TrySetCanceled());
 
@@ -215,7 +215,9 @@ namespace FliclibDotNetClient
 
             await SendPacketAsync(new CmdGetButtonInfo() { BdAddr = bdAddr }, cancellationToken).ConfigureAwait(false);
 
-            return await tcs.Task.ConfigureAwait(false);
+            var response =  await tcs.Task.ConfigureAwait(false);
+
+            return new(response.Uuid, response.Color, response.SerialNumber, response.FlicVersion, response.FirmwareVersion);
         }
 
         /// <summary>
@@ -386,12 +388,11 @@ namespace FliclibDotNetClient
             }
             catch (ObjectDisposedException)
             {
-                return;
+                // Ignore
             }
             catch (SocketException)
             {
                 Disconnect();
-                return;
             }
         }
 
@@ -571,8 +572,8 @@ namespace FliclibDotNetClient
                     {
                         var pkt = new EvtGetButtonInfoResponse();
                         pkt.Parse(packet);
-                        if (_getButtonInfoResponseCallbackQueue.TryDequeue(out TaskCompletionSource<GetButtonInfoResponse>? taskCompletionSource))
-                            taskCompletionSource.TrySetResult(new(pkt.BdAddr, new(pkt.Uuid, pkt.Color, pkt.SerialNumber, pkt.FlicVersion, pkt.FirmwareVersion)));
+                        if (_getButtonInfoResponseCallbackQueue.TryDequeue(out TaskCompletionSource<EvtGetButtonInfoResponse>? taskCompletionSource))
+                            taskCompletionSource.TrySetResult(pkt);
                     }
                     break;
                 case EventPacketOpCode.EVT_SCAN_WIZARD_FOUND_PRIVATE_BUTTON_OPCODE:
