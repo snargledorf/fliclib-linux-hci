@@ -28,134 +28,155 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.buttonsList = new System.Windows.Forms.FlowLayoutPanel();
-            this.lblConnectionStatus = new System.Windows.Forms.Label();
-            this.lblBluetoothStatus = new System.Windows.Forms.Label();
-            this.txtServer = new System.Windows.Forms.TextBox();
-            this.lblServer = new System.Windows.Forms.Label();
-            this.lblPort = new System.Windows.Forms.Label();
-            this.txtPort = new System.Windows.Forms.TextBox();
-            this.btnConnectDisconnect = new System.Windows.Forms.Button();
-            this.btnAddNewFlic = new System.Windows.Forms.Button();
-            this.lblScanWizardStatus = new System.Windows.Forms.Label();
-            this.SuspendLayout();
+            buttonsList = new System.Windows.Forms.FlowLayoutPanel();
+            lblConnectionStatus = new System.Windows.Forms.Label();
+            lblBluetoothStatus = new System.Windows.Forms.Label();
+            txtServer = new System.Windows.Forms.TextBox();
+            lblServer = new System.Windows.Forms.Label();
+            lblPort = new System.Windows.Forms.Label();
+            txtPort = new System.Windows.Forms.TextBox();
+            btnConnectDisconnect = new System.Windows.Forms.Button();
+            btnAddNewFlic = new System.Windows.Forms.Button();
+            lblScanWizardStatus = new System.Windows.Forms.Label();
+            label1 = new System.Windows.Forms.Label();
+            SuspendLayout();
             // 
             // buttonsList
             // 
-            this.buttonsList.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left)));
-            this.buttonsList.AutoScroll = true;
-            this.buttonsList.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.buttonsList.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
-            this.buttonsList.Location = new System.Drawing.Point(13, 13);
-            this.buttonsList.Name = "buttonsList";
-            this.buttonsList.Size = new System.Drawing.Size(225, 358);
-            this.buttonsList.TabIndex = 0;
-            this.buttonsList.WrapContents = false;
+            buttonsList.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left;
+            buttonsList.AutoScroll = true;
+            buttonsList.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            buttonsList.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
+            buttonsList.Location = new System.Drawing.Point(15, 15);
+            buttonsList.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            buttonsList.Name = "buttonsList";
+            buttonsList.Size = new System.Drawing.Size(262, 413);
+            buttonsList.TabIndex = 0;
+            buttonsList.WrapContents = false;
             // 
             // lblConnectionStatus
             // 
-            this.lblConnectionStatus.AutoSize = true;
-            this.lblConnectionStatus.Location = new System.Drawing.Point(274, 13);
-            this.lblConnectionStatus.Name = "lblConnectionStatus";
-            this.lblConnectionStatus.Size = new System.Drawing.Size(164, 13);
-            this.lblConnectionStatus.TabIndex = 1;
-            this.lblConnectionStatus.Text = "Connection status: Disconnected";
+            lblConnectionStatus.AutoSize = true;
+            lblConnectionStatus.Location = new System.Drawing.Point(320, 15);
+            lblConnectionStatus.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblConnectionStatus.Name = "lblConnectionStatus";
+            lblConnectionStatus.Size = new System.Drawing.Size(181, 15);
+            lblConnectionStatus.TabIndex = 1;
+            lblConnectionStatus.Text = "Connection status: Disconnected";
             // 
             // lblBluetoothStatus
             // 
-            this.lblBluetoothStatus.AutoSize = true;
-            this.lblBluetoothStatus.Location = new System.Drawing.Point(273, 26);
-            this.lblBluetoothStatus.Name = "lblBluetoothStatus";
-            this.lblBluetoothStatus.Size = new System.Drawing.Size(132, 13);
-            this.lblBluetoothStatus.TabIndex = 2;
-            this.lblBluetoothStatus.Text = "Bluetooth controller status:";
+            lblBluetoothStatus.AutoSize = true;
+            lblBluetoothStatus.Location = new System.Drawing.Point(318, 30);
+            lblBluetoothStatus.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblBluetoothStatus.Name = "lblBluetoothStatus";
+            lblBluetoothStatus.Size = new System.Drawing.Size(150, 15);
+            lblBluetoothStatus.TabIndex = 2;
+            lblBluetoothStatus.Text = "Bluetooth controller status:";
             // 
             // txtServer
             // 
-            this.txtServer.Location = new System.Drawing.Point(276, 101);
-            this.txtServer.Name = "txtServer";
-            this.txtServer.Size = new System.Drawing.Size(100, 20);
-            this.txtServer.TabIndex = 3;
-            this.txtServer.Text = "localhost";
+            txtServer.Location = new System.Drawing.Point(322, 117);
+            txtServer.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            txtServer.Name = "txtServer";
+            txtServer.Size = new System.Drawing.Size(116, 23);
+            txtServer.TabIndex = 3;
+            txtServer.Text = "localhost";
             // 
             // lblServer
             // 
-            this.lblServer.AutoSize = true;
-            this.lblServer.Location = new System.Drawing.Point(273, 85);
-            this.lblServer.Name = "lblServer";
-            this.lblServer.Size = new System.Drawing.Size(41, 13);
-            this.lblServer.TabIndex = 4;
-            this.lblServer.Text = "Server:";
+            lblServer.AutoSize = true;
+            lblServer.Location = new System.Drawing.Point(318, 98);
+            lblServer.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblServer.Name = "lblServer";
+            lblServer.Size = new System.Drawing.Size(42, 15);
+            lblServer.TabIndex = 4;
+            lblServer.Text = "Server:";
             // 
             // lblPort
             // 
-            this.lblPort.AutoSize = true;
-            this.lblPort.Location = new System.Drawing.Point(273, 124);
-            this.lblPort.Name = "lblPort";
-            this.lblPort.Size = new System.Drawing.Size(29, 13);
-            this.lblPort.TabIndex = 5;
-            this.lblPort.Text = "Port:";
+            lblPort.AutoSize = true;
+            lblPort.Location = new System.Drawing.Point(318, 143);
+            lblPort.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblPort.Name = "lblPort";
+            lblPort.Size = new System.Drawing.Size(32, 15);
+            lblPort.TabIndex = 5;
+            lblPort.Text = "Port:";
             // 
             // txtPort
             // 
-            this.txtPort.Location = new System.Drawing.Point(276, 140);
-            this.txtPort.Name = "txtPort";
-            this.txtPort.Size = new System.Drawing.Size(100, 20);
-            this.txtPort.TabIndex = 6;
-            this.txtPort.Text = "5551";
+            txtPort.Location = new System.Drawing.Point(322, 162);
+            txtPort.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            txtPort.Name = "txtPort";
+            txtPort.Size = new System.Drawing.Size(116, 23);
+            txtPort.TabIndex = 6;
+            txtPort.Text = "5551";
             // 
             // btnConnectDisconnect
             // 
-            this.btnConnectDisconnect.Location = new System.Drawing.Point(275, 167);
-            this.btnConnectDisconnect.Name = "btnConnectDisconnect";
-            this.btnConnectDisconnect.Size = new System.Drawing.Size(101, 23);
-            this.btnConnectDisconnect.TabIndex = 7;
-            this.btnConnectDisconnect.Text = "Connect";
-            this.btnConnectDisconnect.UseVisualStyleBackColor = true;
-            this.btnConnectDisconnect.Click += new System.EventHandler(this.btnConnectDisconnect_Click);
+            btnConnectDisconnect.Location = new System.Drawing.Point(321, 193);
+            btnConnectDisconnect.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            btnConnectDisconnect.Name = "btnConnectDisconnect";
+            btnConnectDisconnect.Size = new System.Drawing.Size(118, 27);
+            btnConnectDisconnect.TabIndex = 7;
+            btnConnectDisconnect.Text = "Connect";
+            btnConnectDisconnect.UseVisualStyleBackColor = true;
+            btnConnectDisconnect.Click += btnConnectDisconnect_Click;
             // 
             // btnAddNewFlic
             // 
-            this.btnAddNewFlic.Enabled = false;
-            this.btnAddNewFlic.Location = new System.Drawing.Point(277, 226);
-            this.btnAddNewFlic.Name = "btnAddNewFlic";
-            this.btnAddNewFlic.Size = new System.Drawing.Size(99, 23);
-            this.btnAddNewFlic.TabIndex = 8;
-            this.btnAddNewFlic.Text = "Add new Flic";
-            this.btnAddNewFlic.UseVisualStyleBackColor = true;
-            this.btnAddNewFlic.Click += new System.EventHandler(this.btnAddNewFlic_Click);
+            btnAddNewFlic.Enabled = false;
+            btnAddNewFlic.Location = new System.Drawing.Point(323, 261);
+            btnAddNewFlic.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            btnAddNewFlic.Name = "btnAddNewFlic";
+            btnAddNewFlic.Size = new System.Drawing.Size(115, 27);
+            btnAddNewFlic.TabIndex = 8;
+            btnAddNewFlic.Text = "Add new Flic";
+            btnAddNewFlic.UseVisualStyleBackColor = true;
+            btnAddNewFlic.Click += btnAddNewFlic_Click;
             // 
             // lblScanWizardStatus
             // 
-            this.lblScanWizardStatus.AutoSize = true;
-            this.lblScanWizardStatus.Location = new System.Drawing.Point(277, 256);
-            this.lblScanWizardStatus.Name = "lblScanWizardStatus";
-            this.lblScanWizardStatus.Size = new System.Drawing.Size(105, 13);
-            this.lblScanWizardStatus.TabIndex = 9;
-            this.lblScanWizardStatus.Text = "lblScanWizardStatus";
+            lblScanWizardStatus.AutoSize = true;
+            lblScanWizardStatus.Location = new System.Drawing.Point(323, 295);
+            lblScanWizardStatus.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblScanWizardStatus.Name = "lblScanWizardStatus";
+            lblScanWizardStatus.Size = new System.Drawing.Size(113, 15);
+            lblScanWizardStatus.TabIndex = 9;
+            lblScanWizardStatus.Text = "lblScanWizardStatus";
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new System.Drawing.Point(323, 325);
+            label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(38, 15);
+            label1.TabIndex = 10;
+            label1.Text = "label1";
             // 
             // MainForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(636, 383);
-            this.Controls.Add(this.lblScanWizardStatus);
-            this.Controls.Add(this.btnAddNewFlic);
-            this.Controls.Add(this.btnConnectDisconnect);
-            this.Controls.Add(this.txtPort);
-            this.Controls.Add(this.lblPort);
-            this.Controls.Add(this.lblServer);
-            this.Controls.Add(this.txtServer);
-            this.Controls.Add(this.lblBluetoothStatus);
-            this.Controls.Add(this.lblConnectionStatus);
-            this.Controls.Add(this.buttonsList);
-            this.Name = "MainForm";
-            this.Text = "Flic Sample";
-            this.Load += new System.EventHandler(this.Form1_Load);
-            this.ResumeLayout(false);
-            this.PerformLayout();
-
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            ClientSize = new System.Drawing.Size(742, 442);
+            Controls.Add(label1);
+            Controls.Add(lblScanWizardStatus);
+            Controls.Add(btnAddNewFlic);
+            Controls.Add(btnConnectDisconnect);
+            Controls.Add(txtPort);
+            Controls.Add(lblPort);
+            Controls.Add(lblServer);
+            Controls.Add(txtServer);
+            Controls.Add(lblBluetoothStatus);
+            Controls.Add(lblConnectionStatus);
+            Controls.Add(buttonsList);
+            Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            Name = "MainForm";
+            Text = "Flic Sample";
+            Load += Form1_Load;
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -170,6 +191,7 @@
         private System.Windows.Forms.Button btnConnectDisconnect;
         private System.Windows.Forms.Button btnAddNewFlic;
         private System.Windows.Forms.Label lblScanWizardStatus;
+        private System.Windows.Forms.Label label1;
     }
 }
 

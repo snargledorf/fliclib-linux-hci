@@ -32,6 +32,7 @@
             lblStatus = new System.Windows.Forms.Label();
             pictureBox = new System.Windows.Forms.PictureBox();
             chkListen = new System.Windows.Forms.CheckBox();
+            btnDisconnect = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox).BeginInit();
             SuspendLayout();
             // 
@@ -58,10 +59,10 @@
             // pictureBox
             // 
             pictureBox.BackColor = System.Drawing.Color.Red;
-            pictureBox.Location = new System.Drawing.Point(122, 10);
+            pictureBox.Location = new System.Drawing.Point(155, 10);
             pictureBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             pictureBox.Name = "pictureBox";
-            pictureBox.Size = new System.Drawing.Size(117, 58);
+            pictureBox.Size = new System.Drawing.Size(84, 58);
             pictureBox.TabIndex = 3;
             pictureBox.TabStop = false;
             // 
@@ -70,17 +71,28 @@
             chkListen.Appearance = System.Windows.Forms.Appearance.Button;
             chkListen.Location = new System.Drawing.Point(5, 43);
             chkListen.Name = "chkListen";
-            chkListen.Size = new System.Drawing.Size(110, 25);
+            chkListen.Size = new System.Drawing.Size(62, 25);
             chkListen.TabIndex = 4;
             chkListen.Text = "Listen";
             chkListen.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             chkListen.UseVisualStyleBackColor = true;
             chkListen.CheckedChanged += chkListen_CheckedChanged;
             // 
+            // btnDisconnect
+            // 
+            btnDisconnect.Location = new System.Drawing.Point(73, 45);
+            btnDisconnect.Name = "btnDisconnect";
+            btnDisconnect.Size = new System.Drawing.Size(75, 23);
+            btnDisconnect.TabIndex = 5;
+            btnDisconnect.Text = "Disconnect";
+            btnDisconnect.UseVisualStyleBackColor = true;
+            btnDisconnect.Click += btnDisconnect_Click;
+            // 
             // FlicButtonControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            Controls.Add(btnDisconnect);
             Controls.Add(chkListen);
             Controls.Add(pictureBox);
             Controls.Add(lblStatus);
@@ -99,5 +111,6 @@
         public System.Windows.Forms.Label lblStatus;
         public System.Windows.Forms.PictureBox pictureBox;
         private System.Windows.Forms.CheckBox chkListen;
+        private System.Windows.Forms.Button btnDisconnect;
     }
 }

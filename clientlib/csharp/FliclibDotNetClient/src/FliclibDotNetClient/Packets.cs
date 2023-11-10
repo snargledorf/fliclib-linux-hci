@@ -152,7 +152,8 @@ namespace FliclibDotNetClient
 
     internal class CmdCreateScanWizard : CommandPacket
     {
-        internal uint ScanWizardId;
+        private static int _nextId = 0;
+        internal uint ScanWizardId = (uint)Interlocked.Increment(ref _nextId);
 
         protected override int Opcode => 9;
 

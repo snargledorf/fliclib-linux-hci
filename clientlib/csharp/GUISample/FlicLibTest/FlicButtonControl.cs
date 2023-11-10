@@ -87,5 +87,10 @@ namespace FlicLibTest
                 await Channel.CloseAsync();
             }
         }
+
+        private async void btnDisconnect_Click(object sender, EventArgs e)
+        {
+            await button.DisconnectAsync();
+        }
     }
 }

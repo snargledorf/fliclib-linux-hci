@@ -47,6 +47,13 @@ namespace FliclibDotNetClient
         internal Bdaddr BdAddr;
         internal string? Name;
 
+        internal ScanWizard(FlicClient flicClient)
+        {
+            FlicClient = flicClient;
+        }
+
+        public FlicClient FlicClient { get; }
+
         /// <summary>
         /// Called at most once when a private button has been found. That means the user should press the Flic button for 7 seconds in order to make it public.
         /// </summary>
@@ -68,6 +75,10 @@ namespace FliclibDotNetClient
         /// Called when the scan wizard has completed for any reason.
         /// </summary>
         public event EventHandler<ScanWizardCompletedEventArgs>? Completed;
+
+        public Task StartAsync(CancellationToken cancellationToken = default) => FlicClient.StartAsync(this, cancellationToken);
+
+        public Task CancelAsync(CancellationToken cancellationToken = default) => FlicClient.CancelAsync(this, cancellationToken);
 
         protected internal virtual void OnFoundPrivateButton()
         {

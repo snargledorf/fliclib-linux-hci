@@ -18,7 +18,7 @@ namespace FliclibDotNetClient
 
         internal FlicButton(FlicClient flicClient, Bdaddr bdAddr)
         {
-            this.FlicClient = flicClient;
+            FlicClient = flicClient;
             Bdaddr = bdAddr;
         }
 
@@ -26,7 +26,10 @@ namespace FliclibDotNetClient
 
         public FlicClient FlicClient { get; }
 
-        public Task<ButtonConnectionChannel> OpenConnectionAsync(LatencyMode latencyMode = LatencyMode.NormalLatency, short autoDisconnectTime = ButtonConnectionChannel.DefaultAutoDisconnectTime, CancellationToken cancellationToken = default)
+        public Task<ButtonConnectionChannel> OpenConnectionAsync(
+            LatencyMode latencyMode = LatencyMode.NormalLatency,
+            short autoDisconnectTime = ButtonConnectionChannel.DefaultAutoDisconnectTime,
+            CancellationToken cancellationToken = default)
         {
             return FlicClient.OpenButtonConnectionChannelAsync(this, latencyMode, autoDisconnectTime, cancellationToken: cancellationToken);
         }
@@ -40,5 +43,7 @@ namespace FliclibDotNetClient
         {
             return buttonInfo ??= await FlicClient.GetButtonInfoAsync(Bdaddr, cancellationToken).ConfigureAwait(false);
         }
+
+        public Task DisconnectAsync(CancellationToken cancellationToken = default) => FlicClient.ForceDisconnectAsync(this, cancellationToken);
     }
 }

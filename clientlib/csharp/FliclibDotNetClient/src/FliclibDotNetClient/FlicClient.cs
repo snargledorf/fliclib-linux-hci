@@ -92,7 +92,7 @@ namespace FliclibDotNetClient
 
         private readonly ConcurrentDictionary<uint, ScanWizard> _scanWizards = new();
 
-        private readonly ConcurrentQueue<TaskCompletionSource<GetInfoResponse>> _getInfoTaskCompletionSourceQueue = new();
+        private readonly ConcurrentQueue<TaskCompletionSource<EvtGetInfoResponse>> _getInfoTaskCompletionSourceQueue = new();
         private readonly ConcurrentQueue<TaskCompletionSource<EvtGetButtonInfoResponse>> _getButtonInfoResponseCallbackQueue = new();
 
         /// <summary>
@@ -188,7 +188,7 @@ namespace FliclibDotNetClient
 
         public async Task<GetInfoResponse> GetInfoAsync(CancellationToken cancellationToken = default)
         {
-            var tcs = new TaskCompletionSource<GetInfoResponse>();
+            var tcs = new TaskCompletionSource<EvtGetInfoResponse>();
 
             cancellationToken.Register(() => tcs.TrySetCanceled());
 
@@ -196,7 +196,33 @@ namespace FliclibDotNetClient
 
             await SendPacketAsync(new CmdGetInfo(), cancellationToken).ConfigureAwait(false);
 
-            return await tcs.Task.ConfigureAwait(false);
+            var response = await tcs.Task.ConfigureAwait(false);
+
+            return new(
+                response.BluetoothControllerState,
+                response.MyBdAddr,
+                response.MyBdAddrType,
+                response.MaxPendingConnections,
+                response.MaxConcurrentlyConnectedButtons,
+                response.CurrentPendingConnections,
+                response.CurrentlyNoSpaceForNewConnection,
+                response.BdAddrOfVerifiedButtons?.Select(bdaddr => new FlicButton(this, bdaddr)).ToArray());
+        }
+
+        public ButtonScanner CreateScanner()
+        {
+            return new ButtonScanner(this);
+        }
+
+        /// <summary>
+        /// Adds and starts a ScanWizard.
+        /// Events on the scan wizard will be raised as it makes progress. Eventually Completed will be raised.
+        /// The scan wizard must not currently be running.
+        /// </summary>
+        /// <param name="scanWizard">A ScanWizard</param>
+        public ScanWizard CreateScanWizard()
+        {
+            return new ScanWizard(this);
         }
 
         /// <summary>
@@ -205,7 +231,7 @@ namespace FliclibDotNetClient
         /// </summary>
         /// <param name="bdAddr">Bluetooth device address</param>
         /// <param name="callback">Callback to be invoked when the response arrives</param>
-        public async Task<FlicButtonInfo> GetButtonInfoAsync(Bdaddr bdAddr, CancellationToken cancellationToken = default)
+        internal async Task<FlicButtonInfo> GetButtonInfoAsync(Bdaddr bdAddr, CancellationToken cancellationToken = default)
         {
             var tcs = new TaskCompletionSource<EvtGetButtonInfoResponse>();
 
@@ -215,7 +241,7 @@ namespace FliclibDotNetClient
 
             await SendPacketAsync(new CmdGetButtonInfo() { BdAddr = bdAddr }, cancellationToken).ConfigureAwait(false);
 
-            var response =  await tcs.Task.ConfigureAwait(false);
+            var response = await tcs.Task.ConfigureAwait(false);
 
             return new(response.Uuid, response.Color, response.SerialNumber, response.FlicVersion, response.FirmwareVersion);
         }
@@ -226,7 +252,7 @@ namespace FliclibDotNetClient
         /// The scanner must not already be added.
         /// </summary>
         /// <param name="buttonScanner">A ButtonScanner</param>
-        public Task AddScannerAsync(ButtonScanner buttonScanner, CancellationToken cancellationToken = default)
+        internal Task StartAsync(ButtonScanner buttonScanner, CancellationToken cancellationToken = default)
         {
             if (buttonScanner == null)
             {
@@ -241,13 +267,38 @@ namespace FliclibDotNetClient
             return SendPacketAsync(new CmdCreateScanner { ScanId = buttonScanner.ScanId }, cancellationToken);
         }
 
+        internal Task StartAsync(ScanWizard scanWizard, CancellationToken cancellationToken = default)
+        {
+            if (!_scanWizards.TryAdd(scanWizard.ScanWizardId, scanWizard))
+            {
+                throw new ArgumentException("Scan wizard already added");
+            }
+
+            return SendPacketAsync(new CmdCreateScanWizard { ScanWizardId = scanWizard.ScanWizardId }, cancellationToken);
+        }
+
+        /// <summary>
+        /// Cancels a ScanWizard.
+        /// The Completed event will be raised with status WizardCancelledByUser, if it already wasn't completed before the server received this command.
+        /// </summary>
+        /// <param name="scanWizard">A ScanWizard</param>
+        internal Task CancelAsync(ScanWizard scanWizard, CancellationToken cancellationToken = default)
+        {
+            if (scanWizard == null)
+            {
+                throw new ArgumentNullException(nameof(scanWizard));
+            }
+
+            return SendPacketAsync(new CmdCancelScanWizard { ScanWizardId = scanWizard.ScanWizardId }, cancellationToken);
+        }
+
         /// <summary>
         /// Removes a raw scanner.
         /// No further AdvertisementPacket events will be raised.
         /// The scanner must be currently added.
         /// </summary>
         /// <param name="buttonScanner">A ButtonScanner that was previously added</param>
-        public Task RemoveScanner(ButtonScanner buttonScanner, CancellationToken cancellationToken = default)
+        internal Task StopAsync(ButtonScanner buttonScanner, CancellationToken cancellationToken = default)
         {
             if (buttonScanner == null)
             {
@@ -263,48 +314,12 @@ namespace FliclibDotNetClient
         }
 
         /// <summary>
-        /// Adds and starts a ScanWizard.
-        /// Events on the scan wizard will be raised as it makes progress. Eventually Completed will be raised.
-        /// The scan wizard must not currently be running.
-        /// </summary>
-        /// <param name="scanWizard">A ScanWizard</param>
-        public Task AddScanWizardAsync(ScanWizard scanWizard, CancellationToken cancellationToken = default)
-        {
-            if (scanWizard == null)
-            {
-                throw new ArgumentNullException(nameof(scanWizard));
-            }
-
-            if (!_scanWizards.TryAdd(scanWizard.ScanWizardId, scanWizard))
-            {
-                throw new ArgumentException("Scan wizard already added");
-            }
-
-            return SendPacketAsync(new CmdCreateScanWizard { ScanWizardId = scanWizard.ScanWizardId }, cancellationToken);
-        }
-
-        /// <summary>
-        /// Cancels a ScanWizard.
-        /// The Completed event will be raised with status WizardCancelledByUser, if it already wasn't completed before the server received this command.
-        /// </summary>
-        /// <param name="scanWizard">A ScanWizard</param>
-        public Task CancelScanWizardAsync(ScanWizard scanWizard, CancellationToken cancellationToken = default)
-        {
-            if (scanWizard == null)
-            {
-                throw new ArgumentNullException(nameof(scanWizard));
-            }
-
-            return SendPacketAsync(new CmdCancelScanWizard { ScanWizardId = scanWizard.ScanWizardId }, cancellationToken);
-        }
-
-        /// <summary>
         /// Adds a connection channel.
         /// The CreateConnectionChannelResponse event will be raised with the response.
         /// If the response was success, button events will be raised when the button is pressed.
         /// </summary>
         /// <param name="channel">A ButtonConnectionChannel</param>
-        public async Task<ButtonConnectionChannel> OpenButtonConnectionChannelAsync(FlicButton button, LatencyMode latencyMode = LatencyMode.NormalLatency, short autoDisconnectTime = ButtonConnectionChannel.DefaultAutoDisconnectTime, CancellationToken cancellationToken = default)
+        internal async Task<ButtonConnectionChannel> OpenButtonConnectionChannelAsync(FlicButton button, LatencyMode latencyMode = LatencyMode.NormalLatency, short autoDisconnectTime = ButtonConnectionChannel.DefaultAutoDisconnectTime, CancellationToken cancellationToken = default)
         {
             if (button == null)
                 throw new ArgumentNullException(nameof(button), $"{nameof(button)} is null.");
@@ -337,7 +352,7 @@ namespace FliclibDotNetClient
         /// Button events will no longer be received after the server has received this command.
         /// </summary>
         /// <param name="channel">A ButtonConnectionChannel</param>
-        public Task CloseButtonConnectionChannelAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
+        internal Task CloseButtonConnectionChannelAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
         {
             if (channel == null)
                 throw new ArgumentNullException(nameof(channel));
@@ -345,17 +360,12 @@ namespace FliclibDotNetClient
             return SendPacketAsync(new CmdRemoveConnectionChannel { ConnId = channel.ConnId }, cancellationToken);
         }
 
-        public Task UpdateConnectionChannelModeParametersAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
-        {
-            return UpdateConnectionChannelModeParametersAsync(channel, channel.LatencyMode, channel.AutoDisconnectTime, cancellationToken);
-        }
-
-        public Task UpdateConnectionChannelModeParametersAsync(ButtonConnectionChannel channel, LatencyMode latencyMode = LatencyMode.NormalLatency, short autoDisconnectTime = ButtonConnectionChannel.DefaultAutoDisconnectTime, CancellationToken cancellationToken = default)
+        internal Task UpdateConnectionChannelModeParametersAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
         {
             if (channel == null)
                 throw new ArgumentNullException(nameof(channel));
 
-            return SendPacketAsync(new CmdChangeModeParameters { ConnId = channel.ConnId, AutoDisconnectTime = autoDisconnectTime, LatencyMode = latencyMode }, cancellationToken);
+            return SendPacketAsync(new CmdChangeModeParameters { ConnId = channel.ConnId, AutoDisconnectTime = channel.AutoDisconnectTime, LatencyMode = channel.LatencyMode }, cancellationToken);
         }
 
         /// <summary>
@@ -363,12 +373,12 @@ namespace FliclibDotNetClient
         /// All connection channels among all clients the server has for this button will be removed.
         /// </summary>
         /// <param name="bdAddr">Bluetooth device address</param>
-        public Task ForceDisconnectAsync(Bdaddr bdAddr, CancellationToken cancellationToken = default)
+        internal Task ForceDisconnectAsync(FlicButton button, CancellationToken cancellationToken = default)
         {
-            if (bdAddr == Bdaddr.Blank)
-                throw new ArgumentNullException(nameof(bdAddr), $"{nameof(bdAddr)} is null.");
+            if (button == null)
+                throw new ArgumentNullException(nameof(button), $"{nameof(button)} is null.");
 
-            return SendPacketAsync(new CmdForceDisconnect { BdAddr = bdAddr }, cancellationToken);
+            return SendPacketAsync(new CmdForceDisconnect { BdAddr = button.Bdaddr }, cancellationToken);
         }
 
         private async Task SendPacketAsync(CommandPacket packet, CancellationToken cancellationToken)
@@ -401,7 +411,7 @@ namespace FliclibDotNetClient
             }
         }
 
-        public async Task HandleEventsAsync(CancellationToken cancellationToken = default)
+        private async Task HandleEventsAsync(CancellationToken cancellationToken = default)
         {
             Debug.Assert(_tcpClient != null, $"{nameof(_tcpClient)} is null");
             Debug.Assert(_stream != null, $"{nameof(_stream)} is null");
@@ -530,7 +540,7 @@ namespace FliclibDotNetClient
                             case EventPacketOpCode.EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OPCODE:
                                 channel.OnButtonSingleOrDoubleClick(eventArgs);
                                 break;
-                            case EventPacketOpCode.EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OR_HOLD_OPCODE:
+                            default: // EventPacketOpCode.EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OR_HOLD_OPCODE:
                                 channel.OnButtonSingleOrDoubleClickOrHold(eventArgs);
                                 break;
                         }
@@ -548,8 +558,8 @@ namespace FliclibDotNetClient
                         var pkt = new EvtGetInfoResponse();
                         pkt.Parse(packet);
 
-                        if (_getInfoTaskCompletionSourceQueue.TryDequeue(out TaskCompletionSource<GetInfoResponse>? taskCompletionSource))
-                            taskCompletionSource.TrySetResult(new(pkt.BluetoothControllerState, pkt.MyBdAddr, pkt.MyBdAddrType, pkt.MaxPendingConnections, pkt.MaxConcurrentlyConnectedButtons, pkt.CurrentPendingConnections, pkt.CurrentlyNoSpaceForNewConnection, pkt.BdAddrOfVerifiedButtons?.Select(bdaddr => new FlicButton(this, bdaddr)).ToArray()));
+                        if (_getInfoTaskCompletionSourceQueue.TryDequeue(out TaskCompletionSource<EvtGetInfoResponse>? taskCompletionSource))
+                            taskCompletionSource.TrySetResult(pkt);
                     }
                     break;
                 case EventPacketOpCode.EVT_NO_SPACE_FOR_NEW_CONNECTION_OPCODE:
@@ -592,18 +602,21 @@ namespace FliclibDotNetClient
                     {
                         var pkt = new EvtScanWizardFoundPublicButton();
                         pkt.Parse(packet);
-                        var wizard = _scanWizards[pkt.ScanWizardId];
-                        wizard.BdAddr = pkt.BdAddr;
-                        wizard.Name = pkt.Name;
-                        wizard.OnFoundPublicButton(new ScanWizardButtonInfoEventArgs { BdAddr = wizard.BdAddr, Name = wizard.Name });
+
+                        if (_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
+                        {
+                            wizard.BdAddr = pkt.BdAddr;
+                            wizard.Name = pkt.Name;
+                            wizard.OnFoundPublicButton(new ScanWizardButtonInfoEventArgs { BdAddr = wizard.BdAddr, Name = wizard.Name });
+                        }
                     }
                     break;
                 case EventPacketOpCode.EVT_SCAN_WIZARD_BUTTON_CONNECTED_OPCODE:
                     {
                         var pkt = new EvtScanWizardButtonConnected();
                         pkt.Parse(packet);
-                        var wizard = _scanWizards[pkt.ScanWizardId];
-                        wizard.OnButtonConnected(new ScanWizardButtonInfoEventArgs { BdAddr = wizard.BdAddr, Name = wizard.Name });
+                        if (_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
+                            wizard.OnButtonConnected(new ScanWizardButtonInfoEventArgs { BdAddr = wizard.BdAddr, Name = wizard.Name });
                     }
                     break;
                 case EventPacketOpCode.EVT_SCAN_WIZARD_COMPLETED_OPCODE:
@@ -614,8 +627,6 @@ namespace FliclibDotNetClient
                         if (_scanWizards.TryRemove(pkt.ScanWizardId, out ScanWizard? wizard))
                         {
                             var eventArgs = new ScanWizardCompletedEventArgs { BdAddr = wizard.BdAddr, Name = wizard.Name, Result = pkt.Result };
-                            wizard.BdAddr = Bdaddr.Blank;
-                            wizard.Name = null;
                             wizard.OnCompleted(eventArgs);
                         }
                     }

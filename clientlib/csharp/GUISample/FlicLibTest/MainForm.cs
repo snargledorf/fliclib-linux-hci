@@ -113,37 +113,41 @@ namespace FlicLibTest
             {
                 lblScanWizardStatus.Text = "Press and hold down your Flic button until it connects";
 
-                var scanWizard = new ScanWizard();
-                scanWizard.FoundPrivateButton += (o, args) => 
+                _currentScanWizard = _flicClient.CreateScanWizard();
+
+                _currentScanWizard.FoundPrivateButton += (o, args) =>
                 {
                     lblScanWizardStatus.Text = "Hold down your Flic button for 7 seconds";
                 };
 
-                scanWizard.FoundPublicButton += (o, args) => 
+                _currentScanWizard.FoundPublicButton += (o, args) =>
                 {
                     lblScanWizardStatus.Text = "Found button " + args.BdAddr.ToString() + ", now connecting...";
                 };
 
-                scanWizard.ButtonConnected += (o, args) =>
+                _currentScanWizard.ButtonConnected += (o, args) =>
                 {
                     lblScanWizardStatus.Text = "Connected to " + args.BdAddr.ToString() + ", now pairing...";
                 };
 
-                scanWizard.Completed += (o, args) => 
+                _currentScanWizard.Completed += (o, args) =>
                 {
                     lblScanWizardStatus.Text = "Result: " + args.Result;
                     _currentScanWizard = null;
                     btnAddNewFlic.Text = "Add new Flic";
                 };
 
-                await _flicClient.AddScanWizardAsync(scanWizard);
+                await _currentScanWizard.StartAsync();
 
-                _currentScanWizard = scanWizard;
                 btnAddNewFlic.Text = "Cancel";
             }
             else
             {
-                await _flicClient.CancelScanWizardAsync(_currentScanWizard);
+                await _currentScanWizard.CancelAsync();
+
+                btnAddNewFlic.Text = "Add new Flic";
+
+                _currentScanWizard = null;
             }
         }
     }
