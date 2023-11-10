@@ -41,9 +41,11 @@ namespace FliclibDotNetClient
 
         public async ValueTask<FlicButtonInfo> GetButtonInfoAsync(CancellationToken cancellationToken = default)
         {
-            return buttonInfo ??= await FlicClient.GetButtonInfoAsync(Bdaddr, cancellationToken).ConfigureAwait(false);
+            return buttonInfo ??= await FlicClient.GetButtonInfoAsync(this, cancellationToken).ConfigureAwait(false);
         }
 
-        public Task DisconnectAsync(CancellationToken cancellationToken = default) => FlicClient.ForceDisconnectAsync(this, cancellationToken);
+        public Task DisconnectAsync(CancellationToken cancellationToken = default) => FlicClient.DisconnectAsync(this, cancellationToken);
+
+        public Task DeleteAsync(CancellationToken cancellationToken = default) => FlicClient.DeleteAsync(this, cancellationToken);
     }
 }

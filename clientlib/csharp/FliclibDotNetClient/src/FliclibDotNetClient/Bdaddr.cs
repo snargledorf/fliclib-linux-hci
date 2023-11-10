@@ -79,14 +79,6 @@ namespace FliclibDotNetClient
             return String.Format("{0:x2}:{1:x2}:{2:x2}:{3:x2}:{4:x2}:{5:x2}", bytes[5], bytes[4], bytes[3], bytes[2], bytes[1], bytes[0]);
         }
 
-        public override readonly bool Equals(object? obj)
-        {
-            if (obj is Bdaddr bdaddr)
-                return Equals(bdaddr);
-
-            return base.Equals(obj);
-        }
-
         public static bool operator ==(Bdaddr first, Bdaddr second)
         {
             return first.Equals(second);
@@ -97,19 +89,26 @@ namespace FliclibDotNetClient
             return !(first == second);
         }
 
+        public override readonly bool Equals(object? obj)
+        {
+            if (obj is Bdaddr bdaddr)
+                return Equals(bdaddr);
+
+            return base.Equals(obj);
+        }
+
         public readonly bool Equals(Bdaddr other)
         {
-            return Equals(bytes, other.bytes);
+            return bytes.AsSpan().SequenceEqual(other.bytes.AsSpan());
         }
 
         public override readonly int GetHashCode()
         {
             unchecked
             {
-                int hashCode = 47;
-                if (bytes != null)
-                    hashCode = (hashCode * 53) ^ EqualityComparer<byte[]>.Default.GetHashCode(bytes);
-
+                var hc = new HashCode();
+                hc.AddBytes(bytes.AsSpan());
+                int hashCode = hc.ToHashCode();
                 return hashCode;
             }
         }

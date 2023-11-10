@@ -38,7 +38,6 @@
             btnConnectDisconnect = new System.Windows.Forms.Button();
             btnAddNewFlic = new System.Windows.Forms.Button();
             lblScanWizardStatus = new System.Windows.Forms.Label();
-            label1 = new System.Windows.Forms.Label();
             SuspendLayout();
             // 
             // buttonsList
@@ -145,22 +144,11 @@
             lblScanWizardStatus.TabIndex = 9;
             lblScanWizardStatus.Text = "lblScanWizardStatus";
             // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(323, 325);
-            label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(38, 15);
-            label1.TabIndex = 10;
-            label1.Text = "label1";
-            // 
             // MainForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(742, 442);
-            Controls.Add(label1);
             Controls.Add(lblScanWizardStatus);
             Controls.Add(btnAddNewFlic);
             Controls.Add(btnConnectDisconnect);
@@ -191,7 +179,6 @@
         private System.Windows.Forms.Button btnConnectDisconnect;
         private System.Windows.Forms.Button btnAddNewFlic;
         private System.Windows.Forms.Label lblScanWizardStatus;
-        private System.Windows.Forms.Label label1;
     }
 }
 

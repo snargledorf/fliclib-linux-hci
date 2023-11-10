@@ -92,8 +92,10 @@ namespace FliclibDotNetClient
 
         private readonly ConcurrentDictionary<uint, ScanWizard> _scanWizards = new();
 
+        private readonly ConcurrentDictionary<Bdaddr, TaskCompletionSource<EvtButtonDeleted>> _deleteButtonTaskCompletionSources = new();
+
         private readonly ConcurrentQueue<TaskCompletionSource<EvtGetInfoResponse>> _getInfoTaskCompletionSourceQueue = new();
-        private readonly ConcurrentQueue<TaskCompletionSource<EvtGetButtonInfoResponse>> _getButtonInfoResponseCallbackQueue = new();
+        private readonly ConcurrentDictionary<Bdaddr, TaskCompletionSource<EvtGetButtonInfoResponse>> _getButtonInfoTaskCompletionSources = new();
 
         /// <summary>
         /// Raised when a new button is verified at the server (initiated by any client)
@@ -231,15 +233,15 @@ namespace FliclibDotNetClient
         /// </summary>
         /// <param name="bdAddr">Bluetooth device address</param>
         /// <param name="callback">Callback to be invoked when the response arrives</param>
-        internal async Task<FlicButtonInfo> GetButtonInfoAsync(Bdaddr bdAddr, CancellationToken cancellationToken = default)
+        internal async Task<FlicButtonInfo> GetButtonInfoAsync(FlicButton button, CancellationToken cancellationToken = default)
         {
             var tcs = new TaskCompletionSource<EvtGetButtonInfoResponse>();
 
             cancellationToken.Register(() => tcs.TrySetCanceled());
 
-            _getButtonInfoResponseCallbackQueue.Enqueue(tcs);
+            _getButtonInfoTaskCompletionSources.TryAdd(button.Bdaddr, tcs);
 
-            await SendPacketAsync(new CmdGetButtonInfo() { BdAddr = bdAddr }, cancellationToken).ConfigureAwait(false);
+            await SendPacketAsync(new CmdGetButtonInfo() { BdAddr = button.Bdaddr }, cancellationToken).ConfigureAwait(false);
 
             var response = await tcs.Task.ConfigureAwait(false);
 
@@ -373,12 +375,26 @@ namespace FliclibDotNetClient
         /// All connection channels among all clients the server has for this button will be removed.
         /// </summary>
         /// <param name="bdAddr">Bluetooth device address</param>
-        internal Task ForceDisconnectAsync(FlicButton button, CancellationToken cancellationToken = default)
+        internal Task DisconnectAsync(FlicButton button, CancellationToken cancellationToken = default)
         {
             if (button == null)
                 throw new ArgumentNullException(nameof(button), $"{nameof(button)} is null.");
 
             return SendPacketAsync(new CmdForceDisconnect { BdAddr = button.Bdaddr }, cancellationToken);
+        }
+
+        internal async Task DeleteAsync(FlicButton flicButton, CancellationToken cancellationToken = default)
+        {
+            var tcs = new TaskCompletionSource<EvtButtonDeleted>();
+
+            cancellationToken.Register(() => tcs.TrySetCanceled());
+
+            if (!_deleteButtonTaskCompletionSources.TryAdd(flicButton.Bdaddr, tcs))
+                throw new InvalidOperationException($"Delete already requested for {flicButton.Bdaddr}");
+
+            await SendPacketAsync(new CmdDeleteButton { BdAddr = flicButton.Bdaddr }, cancellationToken).ConfigureAwait(false);
+
+            await tcs.Task;
         }
 
         private async Task SendPacketAsync(CommandPacket packet, CancellationToken cancellationToken)
@@ -587,7 +603,7 @@ namespace FliclibDotNetClient
                     {
                         var pkt = new EvtGetButtonInfoResponse();
                         pkt.Parse(packet);
-                        if (_getButtonInfoResponseCallbackQueue.TryDequeue(out TaskCompletionSource<EvtGetButtonInfoResponse>? taskCompletionSource))
+                        if (_getButtonInfoTaskCompletionSources.TryRemove(pkt.BdAddr, out TaskCompletionSource<EvtGetButtonInfoResponse>? taskCompletionSource))
                             taskCompletionSource.TrySetResult(pkt);
                     }
                     break;
@@ -635,6 +651,11 @@ namespace FliclibDotNetClient
                     {
                         var pkt = new EvtButtonDeleted();
                         pkt.Parse(packet);
+
+                        if (_deleteButtonTaskCompletionSources.TryRemove(pkt.BdAddr, out TaskCompletionSource<EvtButtonDeleted>? tcs))
+                            tcs.TrySetResult(pkt);
+                        
+                        // TODO Delete event on FlicButton class
                         ButtonDeleted?.Invoke(this, new ButtonDeletedEventArgs { BdAddr = pkt.BdAddr, DeletedByThisClient = pkt.DeletedByThisClient });
                     }
                     break;
