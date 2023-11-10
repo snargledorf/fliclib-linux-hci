@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace FliclibDotNetClient
@@ -9,7 +8,6 @@ namespace FliclibDotNetClient
 
     public class FlicButton
     {
-        internal readonly FlicClient flicClient;
         private FlicButtonInfo? buttonInfo;
 
         internal FlicButton(FlicClient flicClient, Bdaddr bdAddr, FlicButtonInfo buttonInfo)
@@ -20,29 +18,27 @@ namespace FliclibDotNetClient
 
         internal FlicButton(FlicClient flicClient, Bdaddr bdAddr)
         {
-            this.flicClient = flicClient;
+            this.FlicClient = flicClient;
             Bdaddr = bdAddr;
         }
 
         public Bdaddr Bdaddr { get; }
 
+        public FlicClient FlicClient { get; }
+
         public Task<ButtonConnectionChannel> OpenConnectionAsync(LatencyMode latencyMode = LatencyMode.NormalLatency, short autoDisconnectTime = ButtonConnectionChannel.DefaultAutoDisconnectTime, CancellationToken cancellationToken = default)
         {
-            return flicClient.OpenButtonConnectionChannelAsync(this, latencyMode, autoDisconnectTime, cancellationToken: cancellationToken);
+            return FlicClient.OpenButtonConnectionChannelAsync(this, latencyMode, autoDisconnectTime, cancellationToken: cancellationToken);
         }
 
         public Task CloseConnectionAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
         {
-            return flicClient.CloseButtonConnectionChannelAsync(channel, cancellationToken);
+            return FlicClient.CloseButtonConnectionChannelAsync(channel, cancellationToken);
         }
 
         public async ValueTask<FlicButtonInfo> GetButtonInfoAsync(CancellationToken cancellationToken = default)
         {
-            if (buttonInfo != null)
-                return buttonInfo;
-
-            GetButtonInfoResponse buttonInfoResponse = await flicClient.GetButtonInfoAsync(Bdaddr, cancellationToken).ConfigureAwait(false);
-            return buttonInfo = buttonInfoResponse.ButtonInfo;
+            return buttonInfo ??= await FlicClient.GetButtonInfoAsync(Bdaddr, cancellationToken).ConfigureAwait(false);
         }
     }
 }

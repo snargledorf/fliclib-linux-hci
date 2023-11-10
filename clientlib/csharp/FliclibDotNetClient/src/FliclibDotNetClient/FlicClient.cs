@@ -80,8 +80,8 @@ namespace FliclibDotNetClient
     /// </summary>
     public sealed class FlicClient : IDisposable
     {
-        private TcpClient? _tcpClient;
-        private NetworkStream? _stream;
+        private readonly TcpClient? _tcpClient;
+        private readonly NetworkStream? _stream;
 
         private readonly byte[] _lengthReadBuf = new byte[2];
 
@@ -345,12 +345,17 @@ namespace FliclibDotNetClient
             return SendPacketAsync(new CmdRemoveConnectionChannel { ConnId = channel.ConnId }, cancellationToken);
         }
 
-        internal Task UpdateConnectionChannelModeParametersAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
+        public Task UpdateConnectionChannelModeParametersAsync(ButtonConnectionChannel channel, CancellationToken cancellationToken = default)
+        {
+            return UpdateConnectionChannelModeParametersAsync(channel, channel.LatencyMode, channel.AutoDisconnectTime, cancellationToken);
+        }
+
+        public Task UpdateConnectionChannelModeParametersAsync(ButtonConnectionChannel channel, LatencyMode latencyMode = LatencyMode.NormalLatency, short autoDisconnectTime = ButtonConnectionChannel.DefaultAutoDisconnectTime, CancellationToken cancellationToken = default)
         {
             if (channel == null)
                 throw new ArgumentNullException(nameof(channel));
 
-            return SendPacketAsync(new CmdChangeModeParameters { ConnId = channel.ConnId, AutoDisconnectTime = channel.AutoDisconnectTime, LatencyMode = channel.LatencyMode }, cancellationToken);
+            return SendPacketAsync(new CmdChangeModeParameters { ConnId = channel.ConnId, AutoDisconnectTime = autoDisconnectTime, LatencyMode = latencyMode }, cancellationToken);
         }
 
         /// <summary>

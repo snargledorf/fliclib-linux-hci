@@ -1,28 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace FliclibDotNetClient
 {
-    /// <summary>
-    /// CreateConnectionChannelResponseEventArgs
-    /// </summary>
-    public class CreateConnectionChannelResponseEventArgs : EventArgs
-    {
-        /// <summary>
-        /// Whether the request succeeded or not, and if not, what error.
-        /// </summary>
-        public CreateConnectionChannelError Error { get; internal set; }
-
-        /// <summary>
-        /// The current connection status to this button.
-        /// This might be a non-disconnected status if there are already other active connection channels to this button.
-        /// </summary>
-        public ConnectionStatus ConnectionStatus { get; internal set; }
-    }
-
     /// <summary>
     /// ConnectionChannelRemovedEventArgs
     /// </summary>
@@ -135,7 +117,7 @@ namespace FliclibDotNetClient
 
         private async Task UpdateConnectionChannelModeParametersAsync(CancellationToken cancellationToken)
         {
-            await (Button.flicClient.UpdateConnectionChannelModeParametersAsync(this, cancellationToken) ?? Task.CompletedTask).ConfigureAwait(false);
+            await Button.FlicClient.UpdateConnectionChannelModeParametersAsync(this, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

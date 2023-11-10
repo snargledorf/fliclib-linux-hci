@@ -19,7 +19,7 @@ namespace FliclibDotNetClient
         /// <summary>
         /// The advertised name
         /// </summary>
-        public string Name { get; internal set; }
+        public string? Name { get; internal set; }
 
         /// <summary>
         /// RSSI value (signal strength)
