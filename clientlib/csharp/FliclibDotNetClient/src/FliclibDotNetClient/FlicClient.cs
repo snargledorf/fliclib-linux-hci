@@ -157,6 +157,9 @@ namespace FliclibDotNetClient
         /// </summary>
         public void Disconnect()
         {
+            if (disposedValue) 
+                return;
+
             Dispose();
 
             FireOnDisconnectEvent();
@@ -408,8 +411,8 @@ namespace FliclibDotNetClient
             }
             catch (Exception ex)
             {
-                Disconnect();
                 FireOnExceptionEvent(ex);
+                Disconnect();
             }
         }
 

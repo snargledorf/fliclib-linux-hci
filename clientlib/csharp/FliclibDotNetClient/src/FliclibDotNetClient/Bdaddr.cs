@@ -7,22 +7,6 @@ using System.Threading.Tasks;
 
 namespace FliclibDotNetClient
 {
-    public static class BinaryReaderExtension
-    {
-        public static Bdaddr ReadBdaddr(this BinaryReader reader)
-        {
-            var buffer = reader.ReadBytes(6);
-            if (buffer.Length < 6)
-                throw new EndOfStreamException();
-
-            return new Bdaddr(buffer);
-        }
-
-        public static void Write(this BinaryWriter writer, Bdaddr bdaddr)
-        {
-            writer.Write(bdaddr.ToBytes());
-        }
-    }
 
     /// <summary>
     /// Represents a Bluetooth device address

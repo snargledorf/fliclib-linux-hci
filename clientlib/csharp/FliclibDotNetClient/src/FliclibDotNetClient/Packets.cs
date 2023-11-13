@@ -228,17 +228,10 @@ namespace FliclibDotNetClient
         {
             ScanId = reader.ReadUInt32();
             BdAddr = reader.ReadBdaddr();
+            
             int nameLen = reader.ReadByte();
-            var bytes = new byte[nameLen];
-            for (var i = 0; i < nameLen; i++)
-            {
-                bytes[i] = reader.ReadByte();
-            }
-            for (var i = nameLen; i < 16; i++)
-            {
-                reader.ReadByte();
-            }
-            Name = Encoding.UTF8.GetString(bytes);
+            Name = reader.ReadFlicString(nameLen);
+
             Rssi = reader.ReadSByte();
             IsPrivate = reader.ReadBoolean();
             AlreadyVerified = reader.ReadBoolean();
@@ -333,8 +326,10 @@ namespace FliclibDotNetClient
             MaxConcurrentlyConnectedButtons = reader.ReadInt16();
             CurrentPendingConnections = reader.ReadByte();
             CurrentlyNoSpaceForNewConnection = reader.ReadBoolean();
+
             var nbVerifiedButtons = reader.ReadUInt16();
             BdAddrOfVerifiedButtons = new Bdaddr[nbVerifiedButtons];
+
             for (var i = 0; i < nbVerifiedButtons; i++)
             {
                 BdAddrOfVerifiedButtons[i] = reader.ReadBdaddr();
@@ -374,6 +369,8 @@ namespace FliclibDotNetClient
 
     internal class EvtGetButtonInfoResponse : EventPacket
     {
+        private static readonly byte[] EmptyUuid = new byte[16];
+
         internal Bdaddr BdAddr;
         internal string? Uuid;
         internal string? Color;
@@ -384,50 +381,30 @@ namespace FliclibDotNetClient
         protected override void ParseInternal(BinaryReader reader)
         {
             BdAddr = reader.ReadBdaddr();
-            var uuidBytes = reader.ReadBytes(16);
-            if (uuidBytes.Length != 16)
-            {
-                throw new EndOfStreamException();
-            }
-            var sb = new StringBuilder(32);
-            for (var i = 0; i < 16; i++)
-            {
-                sb.Append(string.Format("{0:x2}", uuidBytes[i]));
-            }
-            Uuid = sb.ToString();
-            if (Uuid == "00000000000000000000000000000000")
-            {
-                Uuid = null;
-            }
 
+            ReadOnlySpan<byte> uuidBytes = reader.ReadBytes(16);
+            if (uuidBytes.Length != 16)
+                throw new EndOfStreamException("End of stream while reading Uuid");
+
+            if(uuidBytes.SequenceEqual(EmptyUuid))
+                Uuid = null;
+            else
+                Uuid = Convert.ToHexString(uuidBytes);
+
+            // For old protocol
             if (reader.PeekChar() == -1)
-            {
-                // For old protocol
                 return;
-            }
+
             int colorLen = reader.ReadByte();
-            var colorBytes = new byte[colorLen];
-            for (var i = 0; i < colorLen; i++)
-            {
-                colorBytes[i] = reader.ReadByte();
-            }
-            for (var i = colorLen; i < 16; i++)
-            {
-                reader.ReadByte();
-            }
-            Color = colorLen == 0 ? null : Encoding.UTF8.GetString(colorBytes);
+            Color = reader.ReadFlicString(colorLen);
+            if(colorLen == 0)
+                Color = null;
 
             int serialNumberLen = reader.ReadByte();
-            var serialNumberBytes = new byte[serialNumberLen];
-            for (var i = 0; i < serialNumberLen; i++)
-            {
-                serialNumberBytes[i] = reader.ReadByte();
-            }
-            for (var i = serialNumberLen; i < 16; i++)
-            {
-                reader.ReadByte();
-            }
-            SerialNumber = serialNumberLen == 0 ? null : Encoding.UTF8.GetString(serialNumberBytes);
+            SerialNumber = reader.ReadFlicString(serialNumberLen);
+            if (SerialNumber.Length == 0)
+                SerialNumber = null;
+
             FlicVersion = reader.ReadByte();
             FirmwareVersion = reader.ReadUInt32();
         }
@@ -453,17 +430,9 @@ namespace FliclibDotNetClient
         {
             ScanWizardId = reader.ReadUInt32();
             BdAddr = reader.ReadBdaddr();
+
             int nameLen = reader.ReadByte();
-            var bytes = new byte[nameLen];
-            for (var i = 0; i < nameLen; i++)
-            {
-                bytes[i] = reader.ReadByte();
-            }
-            for (var i = nameLen; i < 16; i++)
-            {
-                reader.ReadByte();
-            }
-            Name = Encoding.UTF8.GetString(bytes);
+            Name = reader.ReadFlicString(nameLen);
         }
     }
 
