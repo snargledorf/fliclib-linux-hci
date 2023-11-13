@@ -53,8 +53,7 @@ namespace FliclibDotNetClient
     /// </summary>
     public class ButtonScanner
     {
-        private static int _nextId = 0;
-        internal uint ScanId = (uint)Interlocked.Increment(ref _nextId);
+        internal uint ScanId = (uint)FlicIdGenerator<ButtonScanner>.NextId();
 
         public ButtonScanner(FlicClient flicClient)
         {

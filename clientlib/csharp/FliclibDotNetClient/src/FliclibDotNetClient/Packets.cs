@@ -59,9 +59,7 @@ namespace FliclibDotNetClient
 
     internal class CmdCreateConnectionChannel : FlicCommand
     {
-        private static int _nextId;
-
-        internal uint ConnId = (uint)Interlocked.Increment(ref _nextId);
+        internal uint ConnId = FlicIdGenerator<CmdCreateConnectionChannel>.NextId();
         internal Bdaddr BdAddr;
         internal LatencyMode LatencyMode;
         internal short AutoDisconnectTime;
@@ -143,8 +141,7 @@ namespace FliclibDotNetClient
 
     internal class CmdCreateScanWizard : FlicCommand
     {
-        private static int _nextId = 0;
-        internal uint ScanWizardId = (uint)Interlocked.Increment(ref _nextId);
+        internal uint ScanWizardId = FlicIdGenerator<CmdCreateScanWizard>.NextId();
 
         protected override int Opcode => 9;
 
