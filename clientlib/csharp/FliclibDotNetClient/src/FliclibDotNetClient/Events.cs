@@ -24,7 +24,7 @@ namespace FliclibDotNetClient
         EvtNoSpaceForNewConnection = 10,
         EvtGotSpaceForNewConnection = 11,
         EvtBluetoothControllerStateChange = 12,
-        EvtPingResponse = 13, // TODO Implement Ping Event
+        EvtPingResponse = 13,
         EvtGetButtonInfoResponse = 14,
         EvtScanWizardFoundPrivateButton = 15,
         EvtScanWizardFoundPublicButton = 16,
