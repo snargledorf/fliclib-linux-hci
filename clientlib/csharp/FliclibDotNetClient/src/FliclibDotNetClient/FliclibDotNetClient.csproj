@@ -5,8 +5,6 @@
     <Nullable>enable</Nullable>
     <Authors>Emil</Authors>
     <Copyright>Copyright ©  2016</Copyright>
-    <BaseOutputPath>..\..\artifacts\bin\$(MSBuildProjectName)\</BaseOutputPath>
-    <BaseIntermediateOutputPath>..\..\artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
   </PropertyGroup>
 
 </Project>
