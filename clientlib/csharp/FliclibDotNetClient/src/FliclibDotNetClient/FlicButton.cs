@@ -10,19 +10,19 @@ namespace FliclibDotNetClient
     {
         private FlicButtonInfo? buttonInfo;
 
-        internal FlicButton(FlicClient flicClient, Bdaddr bdAddr, FlicButtonInfo buttonInfo)
+        internal FlicButton(FlicClient flicClient, BluetoothAddress bdAddr, FlicButtonInfo buttonInfo)
             : this(flicClient, bdAddr)
         {
             this.buttonInfo = buttonInfo;
         }
 
-        internal FlicButton(FlicClient flicClient, Bdaddr bdAddr)
+        internal FlicButton(FlicClient flicClient, BluetoothAddress bdAddr)
         {
             FlicClient = flicClient;
             Bdaddr = bdAddr;
         }
 
-        public Bdaddr Bdaddr { get; }
+        public BluetoothAddress Bdaddr { get; }
 
         public FlicClient FlicClient { get; }
 

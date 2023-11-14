@@ -14,13 +14,13 @@ using System.Threading.Tasks;
 
 namespace FliclibDotNetClient
 {
-    public record GetInfoResponse(BluetoothControllerState BluetoothControllerState, Bdaddr ControllerBdAddr,
+    public record GetInfoResponse(BluetoothControllerState BluetoothControllerState, BluetoothAddress ControllerBdAddr,
                                            BdAddrType ControllerBdAddrType, byte MaxPendingConnections,
                                            short MaxConcurrentlyConnectedButtons, byte CurrentPendingConnections,
                                            bool CurrentlyNoSpaceForNewConnection,
                                            FlicButton[] VerifiedButtons);
 
-    public record GetButtonInfoResponse(Bdaddr BdAddr, FlicButtonInfo ButtonInfo);
+    public record GetButtonInfoResponse(BluetoothAddress BdAddr, FlicButtonInfo ButtonInfo);
 
     /// <summary>
     /// NewVerifiedButtonEventArgs
@@ -68,7 +68,7 @@ namespace FliclibDotNetClient
         /// <summary>
         /// Bluetooth device address of removed button
         /// </summary>
-        public Bdaddr BdAddr { get; internal set; }
+        public BluetoothAddress BdAddr { get; internal set; }
 
         /// <summary>
         /// Whether or not the button was deleted by this client
@@ -93,10 +93,10 @@ namespace FliclibDotNetClient
 
         private readonly ConcurrentDictionary<uint, ScanWizard> _scanWizards = new();
 
-        private readonly ConcurrentDictionary<Bdaddr, TaskCompletionSource<EvtButtonDeleted>> _deleteButtonTaskCompletionSources = new();
+        private readonly ConcurrentDictionary<BluetoothAddress, TaskCompletionSource<EvtButtonDeleted>> _deleteButtonTaskCompletionSources = new();
 
         private readonly ConcurrentQueue<TaskCompletionSource<EvtGetInfoResponse>> _getInfoTaskCompletionSourceQueue = new();
-        private readonly ConcurrentDictionary<Bdaddr, TaskCompletionSource<EvtGetButtonInfoResponse>> _getButtonInfoTaskCompletionSources = new();
+        private readonly ConcurrentDictionary<BluetoothAddress, TaskCompletionSource<EvtGetButtonInfoResponse>> _getButtonInfoTaskCompletionSources = new();
 
         private readonly ConcurrentDictionary<uint, TaskCompletionSource> pingTaskCompletionSources = new();
 

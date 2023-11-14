@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FliclibDotNetClient
 {
-    public record ScanWizardButtonInfo(Bdaddr BdAddr, string? Name);
+    public record ScanWizardButtonInfo(BluetoothAddress BdAddr, string? Name);
 
     public record ScanWizardResults(
         ScanWizardResult Result,
@@ -27,7 +27,7 @@ namespace FliclibDotNetClient
 
         private ScanWizardButtonInfo? publicButton;
 
-        private readonly Dictionary<Bdaddr, ScanWizardButtonInfo> connectedButtons = new();
+        private readonly Dictionary<BluetoothAddress, ScanWizardButtonInfo> connectedButtons = new();
 
         internal ScanWizard(FlicClient flicClient)
         {

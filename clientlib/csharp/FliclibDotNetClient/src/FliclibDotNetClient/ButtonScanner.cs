@@ -14,7 +14,7 @@ namespace FliclibDotNetClient
         /// <summary>
         /// Bluetooth device address
         /// </summary>
-        public Bdaddr BdAddr { get; internal set; }
+        public BluetoothAddress BdAddr { get; internal set; }
 
         /// <summary>
         /// The advertised name

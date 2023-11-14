@@ -11,11 +11,11 @@ namespace FliclibDotNetClient
     /// <summary>
     /// Represents a Bluetooth device address
     /// </summary>
-    public readonly struct Bdaddr : IEquatable<Bdaddr>
+    public readonly struct BluetoothAddress : IEquatable<BluetoothAddress>
     {
-        public static readonly Bdaddr Blank = default;
+        public static readonly BluetoothAddress Blank = default;
 
-        public Bdaddr(byte[] bytes)
+        public BluetoothAddress(byte[] bytes)
         {
             if (bytes.Length != 6)
                 throw new ArgumentException("Buffer too small", nameof(bytes));
@@ -27,7 +27,7 @@ namespace FliclibDotNetClient
 
         public byte[] ToBytes() => bytes.AsSpan().ToArray();
 
-        public static bool TryParse(string addr, out Bdaddr value)
+        public static bool TryParse(string addr, out BluetoothAddress value)
         {
             try
             {
@@ -41,7 +41,7 @@ namespace FliclibDotNetClient
             }
         }
 
-        public static Bdaddr Parse(string addr)
+        public static BluetoothAddress Parse(string addr)
         {
             if (addr.Length != 17)
                 throw new FormatException("Invaid address format");
@@ -51,7 +51,7 @@ namespace FliclibDotNetClient
             for (int byteIndex = 5, addrIndex = 0; byteIndex >= 0; byteIndex--, addrIndex+=3)
                 parseBuffer[byteIndex] = byte.Parse(addr.Substring(addrIndex, 2), NumberStyles.HexNumber);
 
-            return new Bdaddr(parseBuffer);
+            return new BluetoothAddress(parseBuffer);
         }
 
         /// <summary>
@@ -63,25 +63,25 @@ namespace FliclibDotNetClient
             return String.Format("{0:x2}:{1:x2}:{2:x2}:{3:x2}:{4:x2}:{5:x2}", bytes[5], bytes[4], bytes[3], bytes[2], bytes[1], bytes[0]);
         }
 
-        public static bool operator ==(Bdaddr first, Bdaddr second)
+        public static bool operator ==(BluetoothAddress first, BluetoothAddress second)
         {
             return first.Equals(second);
         }
 
-        public static bool operator !=(Bdaddr first, Bdaddr second)
+        public static bool operator !=(BluetoothAddress first, BluetoothAddress second)
         {
             return !(first == second);
         }
 
         public override readonly bool Equals(object? obj)
         {
-            if (obj is Bdaddr bdaddr)
+            if (obj is BluetoothAddress bdaddr)
                 return Equals(bdaddr);
 
             return base.Equals(obj);
         }
 
-        public readonly bool Equals(Bdaddr other)
+        public readonly bool Equals(BluetoothAddress other)
         {
             return bytes.AsSpan().SequenceEqual(other.bytes.AsSpan());
         }

@@ -31,13 +31,13 @@ namespace FliclibDotNetClient
             return backingReader.ReadUInt32();
         }
 
-        public Bdaddr ReadBdAddr()
+        public BluetoothAddress ReadBluetoothAddress()
         {
             var buffer = backingReader.ReadBytes(6);
             if (buffer.Length < 6)
                 throw new EndOfStreamException();
 
-            return new Bdaddr(buffer);
+            return new BluetoothAddress(buffer);
         }
 
         public byte ReadByte()
@@ -87,6 +87,11 @@ namespace FliclibDotNetClient
         public byte[] ReadBytes(int count)
         {
             return backingReader.ReadBytes(count);
+        }
+
+        internal T ReadEnum<T>()
+        {
+            return (T)(object)backingReader.ReadByte();
         }
 
         private void Dispose(bool disposing)

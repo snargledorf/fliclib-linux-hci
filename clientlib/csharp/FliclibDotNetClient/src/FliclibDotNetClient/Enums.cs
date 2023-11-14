@@ -87,4 +87,44 @@ namespace FliclibDotNetClient
         Resetting,
         Attached
     };
+
+    internal enum EventPacketOpCode : byte
+    {
+        EvtAdvertisementPacket = 0,
+        EvtCreateConnectionChannelResponse = 1,
+        EvtConnectionStatusChanged = 2,
+        EvtConnectionChannelRemoved = 3,
+        EvtButtonUpDownEvent = 4,
+        EvtButtonClickOrHoldEvent = 5,
+        EvtButtonSingleOrDoubleClickEvent = 6,
+        EvtButtonSingleOrDoubleOrHoldEvent = 7,
+        EvtNewVerifiedButton = 8,
+        EvtGetInfoResponse = 9,
+        EvtNoSpaceForNewConnection = 10,
+        EvtGotSpaceForNewConnection = 11,
+        EvtBluetoothControllerStateChange = 12,
+        EvtPingResponse = 13,
+        EvtGetButtonInfoResponse = 14,
+        EvtScanWizardFoundPrivateButton = 15,
+        EvtScanWizardFoundPublicButton = 16,
+        EvtScanWizardButtonConnected = 17,
+        EvtScanWizardCompleted = 18,
+        EvtButtonDeleted = 19,
+    }
+
+    internal enum CommandOpCode : byte
+    {
+        CmdGetInfo = 0,
+        CmdCreateScanner = 1,
+        CmdRemoveScanner = 2,
+        CmdCreateConnectionChannel = 3,
+        CmdRemoveConnectionChannel = 4,
+        CmdForceDisconnect = 5,
+        CmdChangeModeParameters = 6,
+        CmdPing = 7,
+        CmdGetButtonInfo = 8,
+        CmdCreateScanWizard = 9,
+        CmdCancelScanWizard = 10,
+        CmdDeleteButton = 11,
+    }
 }

@@ -8,22 +8,6 @@ using System.Threading.Tasks;
 
 namespace FliclibDotNetClient
 {
-    internal enum CommandOpCode : byte
-    {
-        CmdGetInfo = 0,
-        CmdCreateScanner = 1,
-        CmdRemoveScanner = 2,
-        CmdCreateConnectionChannel = 3,
-        CmdRemoveConnectionChannel = 4,
-        CmdForceDisconnect = 5,
-        CmdChangeModeParameters = 6,
-        CmdPing = 7,
-        CmdGetButtonInfo = 8,
-        CmdCreateScanWizard = 9,
-        CmdCancelScanWizard = 10,
-        CmdDeleteButton = 11,
-    }
-
     internal abstract class FlicCommand
     {
         protected abstract CommandOpCode Opcode { get; }
@@ -74,7 +58,7 @@ namespace FliclibDotNetClient
     internal class CmdCreateConnectionChannel : FlicCommand
     {
         internal readonly uint ConnId = FlicIdGenerator<CmdCreateConnectionChannel>.NextId();
-        internal Bdaddr BdAddr { get; init; }
+        internal BluetoothAddress BdAddr { get; init; }
         internal LatencyMode LatencyMode { get; init; }
         internal short AutoDisconnectTime { get; init; }
 
@@ -103,7 +87,7 @@ namespace FliclibDotNetClient
 
     internal class CmdForceDisconnect : FlicCommand
     {
-        internal Bdaddr BdAddr { get; init; }
+        internal BluetoothAddress BdAddr { get; init; }
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdForceDisconnect;
 
@@ -143,7 +127,7 @@ namespace FliclibDotNetClient
 
     internal class CmdGetButtonInfo : FlicCommand
     {
-        internal Bdaddr BdAddr { get; init; }
+        internal BluetoothAddress BdAddr { get; init; }
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdGetButtonInfo;
 
@@ -179,7 +163,7 @@ namespace FliclibDotNetClient
 
     internal class CmdDeleteButton : FlicCommand
     {
-        internal Bdaddr BdAddr { get; init; }
+        internal BluetoothAddress BdAddr { get; init; }
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdDeleteButton;
 

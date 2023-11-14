@@ -11,35 +11,11 @@ using System.Collections;
 
 namespace FliclibDotNetClient
 {
-    internal enum EventPacketOpCode : byte
-    {
-        EvtAdvertisementPacket = 0,
-        EvtCreateConnectionChannelResponse = 1,
-        EvtConnectionStatusChanged = 2,
-        EvtConnectionChannelRemoved = 3,
-        EvtButtonUpDownEvent = 4,
-        EvtButtonClickOrHoldEvent = 5,
-        EvtButtonSingleOrDoubleClickEvent = 6,
-        EvtButtonSingleOrDoubleOrHoldEvent = 7,
-        EvtNewVerifiedButton = 8,
-        EvtGetInfoResponse = 9,
-        EvtNoSpaceForNewConnection = 10,
-        EvtGotSpaceForNewConnection = 11,
-        EvtBluetoothControllerStateChange = 12,
-        EvtPingResponse = 13,
-        EvtGetButtonInfoResponse = 14,
-        EvtScanWizardFoundPrivateButton = 15,
-        EvtScanWizardFoundPublicButton = 16,
-        EvtScanWizardButtonConnected = 17,
-        EvtScanWizardCompleted = 18,
-        EvtButtonDeleted = 19,
-    }
-
     internal struct EvtAdvertisement
     {
         public EvtAdvertisement(
             uint scanId,
-            Bdaddr bdAddr,
+            BluetoothAddress bdAddr,
             string? name,
             int rssi,
             bool isPrivate,
@@ -59,7 +35,7 @@ namespace FliclibDotNetClient
         }
 
         internal uint ScanId { get; }
-        internal Bdaddr BdAddr { get; }
+        internal BluetoothAddress BdAddr { get; }
         internal string? Name { get; }
         internal int Rssi { get; }
         internal bool IsPrivate { get; }
@@ -73,7 +49,7 @@ namespace FliclibDotNetClient
 
             return new EvtAdvertisement(
                 reader.ReadUInt32(),
-                reader.ReadBdAddr(),
+                reader.ReadBluetoothAddress(),
                 reader.ReadString(reader.ReadByte()),
                 reader.ReadSByte(),
                 reader.ReadBoolean(),
@@ -102,8 +78,8 @@ namespace FliclibDotNetClient
             using var reader = new FlicPacketParser(packet);
             return new(
                 reader.ReadUInt32(),
-                (CreateConnectionChannelError)reader.ReadByte(),
-                (ConnectionStatus)reader.ReadByte());
+                reader.ReadEnum<CreateConnectionChannelError>(),
+                reader.ReadEnum<ConnectionStatus>());
         }
     }
 
@@ -124,7 +100,7 @@ namespace FliclibDotNetClient
         public static EvtConnectionStatusChanged FromPacket(FlicPacket packet)
         {
             using var reader = new FlicPacketParser(packet);
-            return new(reader.ReadUInt32(), (ConnectionStatus)reader.ReadByte(), (DisconnectReason)reader.ReadByte());
+            return new(reader.ReadUInt32(), reader.ReadEnum<ConnectionStatus>(), reader.ReadEnum<DisconnectReason>());
         }
     }
 
@@ -143,7 +119,7 @@ namespace FliclibDotNetClient
         public static EvtConnectionChannelRemoved FromPacket(FlicPacket packet)
         {
             using var reader = new FlicPacketParser(packet);
-            return new(reader.ReadUInt32(), (RemovedReason)reader.ReadByte());
+            return new(reader.ReadUInt32(), reader.ReadEnum<RemovedReason>());
         }
     }
 
@@ -166,24 +142,24 @@ namespace FliclibDotNetClient
         public static EvtButtonClick FromPacket(FlicPacket packet)
         {
             using var reader = new FlicPacketParser(packet);
-            return new(reader.ReadUInt32(), (ClickType)reader.ReadByte(), reader.ReadBoolean(), reader.ReadUInt32());
+            return new(reader.ReadUInt32(), reader.ReadEnum<ClickType>(), reader.ReadBoolean(), reader.ReadUInt32());
         }
     }
 
     internal struct EvtNewVerifiedButton
     {
-        public EvtNewVerifiedButton(Bdaddr bdAddr)
+        public EvtNewVerifiedButton(BluetoothAddress bdAddr)
             : this()
         {
             BdAddr = bdAddr;
         }
 
-        internal Bdaddr BdAddr { get; }
+        internal BluetoothAddress BdAddr { get; }
 
         public static EvtNewVerifiedButton FromPacket(FlicPacket packet)
         {
             using var reader = new FlicPacketParser(packet);
-            return new(reader.ReadBdAddr());
+            return new(reader.ReadBluetoothAddress());
         }
     }
 
@@ -191,13 +167,13 @@ namespace FliclibDotNetClient
     {
         public EvtGetInfoResponse(
             BluetoothControllerState bluetoothControllerState,
-            Bdaddr controllerBdAddr,
+            BluetoothAddress controllerBdAddr,
             BdAddrType controllerBdAddType,
             byte maxPendingConnections,
             short maxConcurrentlyConnectedButtons,
             byte currentPendingConnections,
             bool currentlyNoSpaceForNewConnection,
-            Bdaddr[] verifiedButtonBdAddrs)
+            BluetoothAddress[] verifiedButtonBdAddrs)
         {
             BluetoothControllerState = bluetoothControllerState;
             ControllerBdAddr = controllerBdAddr;
@@ -210,31 +186,31 @@ namespace FliclibDotNetClient
         }
 
         internal BluetoothControllerState BluetoothControllerState { get; }
-        internal Bdaddr ControllerBdAddr { get; }
+        internal BluetoothAddress ControllerBdAddr { get; }
         internal BdAddrType ControllerBdAddrType { get; }
         internal byte MaxPendingConnections { get; }
         internal short MaxConcurrentlyConnectedButtons { get; }
         internal byte CurrentPendingConnections { get; }
         internal bool CurrentlyNoSpaceForNewConnection { get; }
-        internal Bdaddr[] VerifiedButtonBdAddrs { get; }
+        internal BluetoothAddress[] VerifiedButtonBdAddrs { get; }
 
         public static EvtGetInfoResponse FromPacket(FlicPacket packet)
         {
             using var reader = new FlicPacketParser(packet);
 
-            var bluetoothControllerState = (BluetoothControllerState)reader.ReadByte();
-            var controllerBdAddr = reader.ReadBdAddr();
-            var controllerBdAddrType = (BdAddrType)reader.ReadByte();
+            var bluetoothControllerState = reader.ReadEnum<BluetoothControllerState>();
+            var controllerBdAddr = reader.ReadBluetoothAddress();
+            var controllerBdAddrType = reader.ReadEnum<BdAddrType>();
             var maxPendingConnections = reader.ReadByte();
             var maxConcurrentlyConnectedButtons = reader.ReadInt16();
             var currentPendingConnections = reader.ReadByte();
             var currentlyNoSpaceForNewConnection = reader.ReadBoolean();
 
             var verifiedButtonsCount = reader.ReadUInt16();
-            var verifiedButtonBdAddrs = new Bdaddr[verifiedButtonsCount];
+            var verifiedButtonBdAddrs = new BluetoothAddress[verifiedButtonsCount];
 
             for (var i = 0; i < verifiedButtonsCount; i++)
-                verifiedButtonBdAddrs[i] = reader.ReadBdAddr();
+                verifiedButtonBdAddrs[i] = reader.ReadBluetoothAddress();
 
             return new(
                 bluetoothControllerState,
@@ -295,7 +271,7 @@ namespace FliclibDotNetClient
         public static EvtBluetoothControllerStateChange FromPacket(FlicPacket packet)
         {
             using var reader = new FlicPacketParser(packet);
-            return new((BluetoothControllerState)reader.ReadByte());
+            return new(reader.ReadEnum<BluetoothControllerState>());
         }
     }
 
@@ -320,12 +296,12 @@ namespace FliclibDotNetClient
     {
         private static readonly byte[] EmptyUuid = new byte[16];
 
-        public EvtGetButtonInfoResponse(Bdaddr bdAddr, string? uuid)
+        public EvtGetButtonInfoResponse(BluetoothAddress bdAddr, string? uuid)
             : this(bdAddr, uuid, default, default, default, default)
         {
         }
 
-        public EvtGetButtonInfoResponse(Bdaddr bdAddr, string? uuid, string? color, string? serialNumber, int flicVersion, uint firmwareVersion)
+        public EvtGetButtonInfoResponse(BluetoothAddress bdAddr, string? uuid, string? color, string? serialNumber, int flicVersion, uint firmwareVersion)
             : this()
         {
             BdAddr = bdAddr;
@@ -336,7 +312,7 @@ namespace FliclibDotNetClient
             FirmwareVersion = firmwareVersion;
         }
 
-        internal Bdaddr BdAddr { get; }
+        internal BluetoothAddress BdAddr { get; }
         internal string? Uuid { get; }
         internal string? Color { get; }
         internal string? SerialNumber { get; }
@@ -346,7 +322,7 @@ namespace FliclibDotNetClient
         public static EvtGetButtonInfoResponse FromPacket(FlicPacket packet)
         {
             using var reader = new FlicPacketParser(packet);
-            var bdAddr = reader.ReadBdAddr();
+            var bdAddr = reader.ReadBluetoothAddress();
 
             ReadOnlySpan<byte> uuidBytes = reader.ReadBytes(16);
             if (uuidBytes.Length != 16)
@@ -398,7 +374,7 @@ namespace FliclibDotNetClient
 
     internal struct EvtScanWizardFoundPublicButton
     {
-        public EvtScanWizardFoundPublicButton(uint scanWizardId, Bdaddr bdAddr, string name)
+        public EvtScanWizardFoundPublicButton(uint scanWizardId, BluetoothAddress bdAddr, string name)
             : this()
         {
             ScanWizardId = scanWizardId;
@@ -407,13 +383,13 @@ namespace FliclibDotNetClient
         }
 
         internal uint ScanWizardId { get; }
-        internal Bdaddr BdAddr { get; }
+        internal BluetoothAddress BdAddr { get; }
         internal string Name { get; }
 
         public static EvtScanWizardFoundPublicButton FromPacket(FlicPacket packet)
         {
             using var reader = new FlicPacketParser(packet);
-            return new(reader.ReadUInt32(), reader.ReadBdAddr(), reader.ReadString(reader.ReadByte()));
+            return new(reader.ReadUInt32(), reader.ReadBluetoothAddress(), reader.ReadString(reader.ReadByte()));
         }
     }
 
@@ -449,26 +425,26 @@ namespace FliclibDotNetClient
         public static EvtScanWizardCompleted FromPacket(FlicPacket packet)
         {
             using var reader = new FlicPacketParser(packet);
-            return new(reader.ReadUInt32(), (ScanWizardResult)reader.ReadByte());
+            return new(reader.ReadUInt32(), reader.ReadEnum<ScanWizardResult>());
         }
     }
 
     internal struct EvtButtonDeleted
     {
-        public EvtButtonDeleted(Bdaddr bdAddr, bool deletedByThisClient) 
+        public EvtButtonDeleted(BluetoothAddress bdAddr, bool deletedByThisClient) 
             : this()
         {
             BdAddr = bdAddr;
             DeletedByThisClient = deletedByThisClient;
         }
 
-        internal Bdaddr BdAddr { get; }
+        internal BluetoothAddress BdAddr { get; }
         internal bool DeletedByThisClient { get; }
 
         public static EvtButtonDeleted FromPacket(FlicPacket packet)
         {
             using var reader = new FlicPacketParser(packet);
-            return new(reader.ReadBdAddr(), reader.ReadBoolean());
+            return new(reader.ReadBluetoothAddress(), reader.ReadBoolean());
         }
     }
 }
