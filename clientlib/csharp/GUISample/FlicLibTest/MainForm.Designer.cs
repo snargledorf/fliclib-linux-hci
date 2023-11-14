@@ -38,6 +38,7 @@
             btnConnectDisconnect = new System.Windows.Forms.Button();
             btnAddNewFlic = new System.Windows.Forms.Button();
             lblScanWizardStatus = new System.Windows.Forms.Label();
+            btnPing = new System.Windows.Forms.Button();
             SuspendLayout();
             // 
             // buttonsList
@@ -144,11 +145,23 @@
             lblScanWizardStatus.TabIndex = 9;
             lblScanWizardStatus.Text = "lblScanWizardStatus";
             // 
+            // btnPing
+            // 
+            btnPing.Enabled = false;
+            btnPing.Location = new System.Drawing.Point(323, 226);
+            btnPing.Name = "btnPing";
+            btnPing.Size = new System.Drawing.Size(115, 23);
+            btnPing.TabIndex = 10;
+            btnPing.Text = "Ping";
+            btnPing.UseVisualStyleBackColor = true;
+            btnPing.Click += btnPing_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(742, 442);
+            Controls.Add(btnPing);
             Controls.Add(lblScanWizardStatus);
             Controls.Add(btnAddNewFlic);
             Controls.Add(btnConnectDisconnect);
@@ -179,6 +192,7 @@
         private System.Windows.Forms.Button btnConnectDisconnect;
         private System.Windows.Forms.Button btnAddNewFlic;
         private System.Windows.Forms.Label lblScanWizardStatus;
+        private System.Windows.Forms.Button btnPing;
     }
 }
 

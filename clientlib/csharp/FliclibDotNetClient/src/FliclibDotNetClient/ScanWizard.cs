@@ -41,8 +41,7 @@ namespace FliclibDotNetClient
     /// </summary>
     public class ScanWizard
     {
-        private static int _nextId = 0;
-        internal uint ScanWizardId = (uint)Interlocked.Increment(ref _nextId);
+        internal uint ScanWizardId = FlicIdGenerator<ScanWizard>.NextId();
 
         internal Bdaddr BdAddr;
         internal string? Name;

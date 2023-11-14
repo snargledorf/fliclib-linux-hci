@@ -93,6 +93,8 @@ namespace FliclibDotNetClient
         private readonly ConcurrentQueue<TaskCompletionSource<EvtGetInfoResponse>> _getInfoTaskCompletionSourceQueue = new();
         private readonly ConcurrentDictionary<Bdaddr, TaskCompletionSource<EvtGetButtonInfoResponse>> _getButtonInfoTaskCompletionSources = new();
 
+        private readonly ConcurrentDictionary<uint, TaskCompletionSource> pingTaskCompletionSources = new();
+
         private readonly CancellationTokenSource handleEventsCancellationSource = new();
         
         private readonly string host;
@@ -202,6 +204,20 @@ namespace FliclibDotNetClient
         public ScanWizard CreateScanWizard()
         {
             return new ScanWizard(this);
+        }
+
+        public async Task PingAsync(CancellationToken cancellationToken = default)
+        {
+            var tcs = new TaskCompletionSource();
+
+            var pingCmd = new CmdPing();
+
+            if(!pingTaskCompletionSources.TryAdd(pingCmd.PingId, tcs))
+                throw new InvalidOperationException("Ping with same id already sent: " + pingCmd.PingId);
+
+            await SendCommandAsync(pingCmd, cancellationToken).ConfigureAwait(false);
+
+            await tcs.Task.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -418,155 +434,229 @@ namespace FliclibDotNetClient
 
         private void DispatchPacket(FlicPacket packet)
         {
-            switch ((EventPacketOpCode)packet.OpCode)
+            switch((EventPacketOpCode)packet.OpCode)
             {
-                case EventPacketOpCode.EVT_ADVERTISEMENT_PACKET_OPCODE:
-                    {
-                        var pkt = new EvtAdvertisementPacket();
-                        pkt.Parse(packet);
-                        
-                        if (_scanners.TryGetValue(pkt.ScanId, out ButtonScanner? scanner))
-                            scanner.OnAdvertisementPacket(new AdvertisementPacketEventArgs { BdAddr = pkt.BdAddr, Name = pkt.Name, Rssi = pkt.Rssi, IsPrivate = pkt.IsPrivate, AlreadyVerified = pkt.AlreadyVerified, AlreadyConnectedToThisDevice = pkt.AlreadyConnectedToThisDevice, AlreadyConnectedToOtherDevice = pkt.AlreadyConnectedToOtherDevice });
-                    }
+                case EventPacketOpCode.EvtAdvertisementPacket:
+                {
+                    var pkt = new EvtAdvertisementPacket();
+                    pkt.Parse(packet);
+
+                    if(_scanners.TryGetValue(pkt.ScanId, out ButtonScanner? scanner))
+                        scanner.OnAdvertisementPacket(
+                            new AdvertisementPacketEventArgs
+                            {
+                                BdAddr = pkt.BdAddr,
+                                Name = pkt.Name,
+                                Rssi = pkt.Rssi,
+                                IsPrivate = pkt.IsPrivate,
+                                AlreadyVerified = pkt.AlreadyVerified,
+                                AlreadyConnectedToThisDevice = pkt.AlreadyConnectedToThisDevice,
+                                AlreadyConnectedToOtherDevice = pkt.AlreadyConnectedToOtherDevice
+                            });
+
                     break;
-                case EventPacketOpCode.EVT_CREATE_CONNECTION_CHANNEL_RESPONSE_OPCODE:
+                }
+                case EventPacketOpCode.EvtCreateConnectionChannelResponse:
+                {
+                    var pkt = new EvtCreateConnectionChannelResponse();
+                    pkt.Parse(packet);
+
+                    if(_createConnectionChannelCompletionSources.TryGetValue(pkt.ConnId, out var tcs))
                     {
-                        var pkt = new EvtCreateConnectionChannelResponse();
-                        pkt.Parse(packet);
-                        
-                        if (_createConnectionChannelCompletionSources.TryGetValue(pkt.ConnId, out var tcs))
+                        tcs.TrySetResult(pkt);
+                    }
+
+                    break;
+                }
+                case EventPacketOpCode.EvtConnectionStatusChanged:
+                {
+                    var pkt = new EvtConnectionStatusChanged();
+                    pkt.Parse(packet);
+
+                    var channel = _connectionChannels[pkt.ConnId];
+                    channel.OnConnectionStatusChanged(
+                        new ConnectionStatusChangedEventArgs
                         {
-                            tcs.TrySetResult(pkt);
-                        }
-                    }
-                    break;
-                case EventPacketOpCode.EVT_CONNECTION_STATUS_CHANGED_OPCODE:
-                    {
-                        var pkt = new EvtConnectionStatusChanged();
-                        pkt.Parse(packet);
+                            ConnectionStatus = pkt.ConnectionStatus,
+                            DisconnectReason = pkt.DisconnectReason
+                        });
 
-                        var channel = _connectionChannels[pkt.ConnId];
-                        channel.OnConnectionStatusChanged(new ConnectionStatusChangedEventArgs { ConnectionStatus = pkt.ConnectionStatus, DisconnectReason = pkt.DisconnectReason });
-                    }
                     break;
-                case EventPacketOpCode.EVT_CONNECTION_CHANNEL_REMOVED_OPCODE:
-                    {
-                        var pkt = new EvtConnectionChannelRemoved();
-                        pkt.Parse(packet);
+                }
+                case EventPacketOpCode.EvtConnectionChannelRemoved:
+                {
+                    var pkt = new EvtConnectionChannelRemoved();
+                    pkt.Parse(packet);
 
-                        if (_connectionChannels.TryRemove(pkt.ConnId, out ButtonConnectionChannel? channel))
-                            channel.OnRemoved(new ConnectionChannelRemovedEventArgs { RemovedReason = pkt.RemovedReason });
-                    }
-                    break;
-                case EventPacketOpCode.EVT_BUTTON_UP_OR_DOWN_OPCODE:
-                case EventPacketOpCode.EVT_BUTTON_CLICK_OR_HOLD_OPCODE:
-                case EventPacketOpCode.EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OPCODE:
-                case EventPacketOpCode.EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OR_HOLD_OPCODE:
-                    {
-                        var pkt = new EvtButtonEvent();
-                        pkt.Parse(packet);
-                        var channel = _connectionChannels[pkt.ConnId];
-                        var eventArgs = new ButtonEventEventArgs { ClickType = pkt.ClickType, WasQueued = pkt.WasQueued, TimeDiff = pkt.TimeDiff };
-                        FireChannelButtonEvent((EventPacketOpCode)packet.OpCode, channel, eventArgs);
-                    }
-                    break;
-                case EventPacketOpCode.EVT_NEW_VERIFIED_BUTTON_OPCODE:
-                    {
-                        var pkt = new EvtNewVerifiedButton();
-                        pkt.Parse(packet);
-                        NewVerifiedButton?.Invoke(this, new NewVerifiedButtonEventArgs { Button = new FlicButton(this, pkt.BdAddr) });
-                    }
-                    break;
-                case EventPacketOpCode.EVT_GET_INFO_RESPONSE_OPCODE:
-                    {
-                        var pkt = new EvtGetInfoResponse();
-                        pkt.Parse(packet);
+                    if(_connectionChannels.TryRemove(pkt.ConnId, out ButtonConnectionChannel? channel))
+                        channel.OnRemoved(new ConnectionChannelRemovedEventArgs { RemovedReason = pkt.RemovedReason });
 
-                        if (_getInfoTaskCompletionSourceQueue.TryDequeue(out TaskCompletionSource<EvtGetInfoResponse>? taskCompletionSource))
-                            taskCompletionSource.TrySetResult(pkt);
-                    }
                     break;
-                case EventPacketOpCode.EVT_NO_SPACE_FOR_NEW_CONNECTION_OPCODE:
+                }
+                case EventPacketOpCode.EvtButtonUpDownEvent:
+                case EventPacketOpCode.EvtButtonClickOrHoldEvent:
+                case EventPacketOpCode.EvtButtonSingleOrDoubleClickEvent:
+                case EventPacketOpCode.EvtButtonSingleOrDoubleOrHoldEvent:
+                {
+                    var pkt = new EvtButtonEvent();
+                    pkt.Parse(packet);
+                    var channel = _connectionChannels[pkt.ConnId];
+                    var eventArgs = new ButtonEventEventArgs
                     {
-                        var pkt = new EvtNoSpaceForNewConnection();
-                        pkt.Parse(packet);
-                        NoSpaceForNewConnection?.Invoke(this, new SpaceForNewConnectionEventArgs { MaxConcurrentlyConnectedButtons = pkt.MaxConcurrentlyConnectedButtons });
-                    }
-                    break;
-                case EventPacketOpCode.EVT_GOT_SPACE_FOR_NEW_CONNECTION_OPCODE:
-                    {
-                        var pkt = new EvtGotSpaceForNewConnection();
-                        pkt.Parse(packet);
-                        GotSpaceForNewConnection?.Invoke(this, new SpaceForNewConnectionEventArgs { MaxConcurrentlyConnectedButtons = pkt.MaxConcurrentlyConnectedButtons });
-                    }
-                    break;
-                case EventPacketOpCode.EVT_BLUETOOTH_CONTROLLER_STATE_CHANGE_OPCODE:
-                    {
-                        var pkt = new EvtBluetoothControllerStateChange();
-                        pkt.Parse(packet);
-                        BluetoothControllerStateChange?.Invoke(this, new BluetoothControllerStateChangeEventArgs { State = pkt.State });
-                    }
-                    break;
-                case EventPacketOpCode.EVT_GET_BUTTON_INFO_RESPONSE_OPCODE:
-                    {
-                        var pkt = new EvtGetButtonInfoResponse();
-                        pkt.Parse(packet);
-                        if (_getButtonInfoTaskCompletionSources.TryRemove(pkt.BdAddr, out TaskCompletionSource<EvtGetButtonInfoResponse>? taskCompletionSource))
-                            taskCompletionSource.TrySetResult(pkt);
-                    }
-                    break;
-                case EventPacketOpCode.EVT_SCAN_WIZARD_FOUND_PRIVATE_BUTTON_OPCODE:
-                    {
-                        var pkt = new EvtScanWizardFoundPrivateButton();
-                        pkt.Parse(packet);
-                        _scanWizards[pkt.ScanWizardId].OnFoundPrivateButton();
-                    }
-                    break;
-                case EventPacketOpCode.EVT_SCAN_WIZARD_FOUND_PUBLIC_BUTTON_OPCODE:
-                    {
-                        var pkt = new EvtScanWizardFoundPublicButton();
-                        pkt.Parse(packet);
+                        ClickType = pkt.ClickType,
+                        WasQueued = pkt.WasQueued,
+                        TimeDiff = pkt.TimeDiff
+                    };
 
-                        if (_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
+                    FireChannelButtonEvent((EventPacketOpCode)packet.OpCode, channel, eventArgs);
+
+                    break;
+                }
+                case EventPacketOpCode.EvtNewVerifiedButton:
+                {
+                    var pkt = new EvtNewVerifiedButton();
+                    pkt.Parse(packet);
+                    NewVerifiedButton?.Invoke(
+                    this,
+                    new NewVerifiedButtonEventArgs { Button = new FlicButton(this, pkt.BdAddr) });
+
+                    break;
+                }
+                case EventPacketOpCode.EvtGetInfoResponse:
+                {
+                    var pkt = new EvtGetInfoResponse();
+                    pkt.Parse(packet);
+
+                    if(_getInfoTaskCompletionSourceQueue.TryDequeue(
+                        out TaskCompletionSource<EvtGetInfoResponse>? taskCompletionSource))
+                        taskCompletionSource.TrySetResult(pkt);
+
+                    break;
+                }
+                case EventPacketOpCode.EvtNoSpaceForNewConnection:
+                {
+                    var pkt = new EvtNoSpaceForNewConnection();
+                    pkt.Parse(packet);
+                    NoSpaceForNewConnection?.Invoke(
+                    this,
+                    new SpaceForNewConnectionEventArgs
+                    {
+                        MaxConcurrentlyConnectedButtons = pkt.MaxConcurrentlyConnectedButtons
+                    });
+
+                    break;
+                }
+                case EventPacketOpCode.EvtGotSpaceForNewConnection:
+                {
+                    var pkt = new EvtGotSpaceForNewConnection();
+                    pkt.Parse(packet);
+                    GotSpaceForNewConnection?.Invoke(
+                    this,
+                    new SpaceForNewConnectionEventArgs
+                    {
+                        MaxConcurrentlyConnectedButtons = pkt.MaxConcurrentlyConnectedButtons
+                    });
+
+                    break;
+                }
+                case EventPacketOpCode.EvtBluetoothControllerStateChange:
+                {
+                    var pkt = new EvtBluetoothControllerStateChange();
+                    pkt.Parse(packet);
+                    BluetoothControllerStateChange?.Invoke(
+                    this,
+                    new BluetoothControllerStateChangeEventArgs { State = pkt.State });
+
+                    break;
+                }
+                case EventPacketOpCode.EvtPingResponse:
+                {
+                    var pkt = new EvtPingResponse();
+                    pkt.Parse(packet);
+                    if(pingTaskCompletionSources.TryRemove(pkt.PingId, out TaskCompletionSource? tcs))
+                        tcs.TrySetResult();
+
+                    break;
+                }
+                case EventPacketOpCode.EvtGetButtonInfoResponse:
+                {
+                    var pkt = new EvtGetButtonInfoResponse();
+                    pkt.Parse(packet);
+                    if(_getButtonInfoTaskCompletionSources.TryRemove(
+                        pkt.BdAddr,
+                        out TaskCompletionSource<EvtGetButtonInfoResponse>? taskCompletionSource))
+                        taskCompletionSource.TrySetResult(pkt);
+
+                    break;
+                }
+                case EventPacketOpCode.EvtScanWizardFoundPrivateButton:
+                {
+                    var pkt = new EvtScanWizardFoundPrivateButton();
+                    pkt.Parse(packet);
+                    _scanWizards[pkt.ScanWizardId].OnFoundPrivateButton();
+
+                    break;
+                }
+                case EventPacketOpCode.EvtScanWizardFoundPublicButton:
+                {
+                    var pkt = new EvtScanWizardFoundPublicButton();
+                    pkt.Parse(packet);
+
+                    if(_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
+                    {
+                        wizard.BdAddr = pkt.BdAddr;
+                        wizard.Name = pkt.Name;
+                        wizard.OnFoundPublicButton(
+                            new ScanWizardButtonInfoEventArgs { BdAddr = wizard.BdAddr, Name = wizard.Name });
+                    }
+
+                    break;
+                }
+                case EventPacketOpCode.EvtScanWizardButtonConnected:
+                {
+                    var pkt = new EvtScanWizardButtonConnected();
+                    pkt.Parse(packet);
+                    if(_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
+                        wizard.OnButtonConnected(
+                            new ScanWizardButtonInfoEventArgs { BdAddr = wizard.BdAddr, Name = wizard.Name });
+
+                    break;
+                }
+                case EventPacketOpCode.EvtScanWizardCompleted:
+                {
+                    var pkt = new EvtScanWizardCompleted();
+                    pkt.Parse(packet);
+
+                    if(_scanWizards.TryRemove(pkt.ScanWizardId, out ScanWizard? wizard))
+                    {
+                        var eventArgs = new ScanWizardCompletedEventArgs
                         {
-                            wizard.BdAddr = pkt.BdAddr;
-                            wizard.Name = pkt.Name;
-                            wizard.OnFoundPublicButton(new ScanWizardButtonInfoEventArgs { BdAddr = wizard.BdAddr, Name = wizard.Name });
-                        }
+                            BdAddr = wizard.BdAddr,
+                            Name = wizard.Name,
+                            Result = pkt.Result
+                        };
+                        wizard.OnCompleted(eventArgs);
                     }
-                    break;
-                case EventPacketOpCode.EVT_SCAN_WIZARD_BUTTON_CONNECTED_OPCODE:
-                    {
-                        var pkt = new EvtScanWizardButtonConnected();
-                        pkt.Parse(packet);
-                        if (_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
-                            wizard.OnButtonConnected(new ScanWizardButtonInfoEventArgs { BdAddr = wizard.BdAddr, Name = wizard.Name });
-                    }
-                    break;
-                case EventPacketOpCode.EVT_SCAN_WIZARD_COMPLETED_OPCODE:
-                    {
-                        var pkt = new EvtScanWizardCompleted();
-                        pkt.Parse(packet);
 
-                        if (_scanWizards.TryRemove(pkt.ScanWizardId, out ScanWizard? wizard))
-                        {
-                            var eventArgs = new ScanWizardCompletedEventArgs { BdAddr = wizard.BdAddr, Name = wizard.Name, Result = pkt.Result };
-                            wizard.OnCompleted(eventArgs);
-                        }
-                    }
                     break;
-                case EventPacketOpCode.EVT_BUTTON_DELETED_OPCODE:
-                    {
-                        var pkt = new EvtButtonDeleted();
-                        pkt.Parse(packet);
+                }
+                case EventPacketOpCode.EvtButtonDeleted:
+                {
+                    var pkt = new EvtButtonDeleted();
+                    pkt.Parse(packet);
 
-                        if (_deleteButtonTaskCompletionSources.TryRemove(pkt.BdAddr, out TaskCompletionSource<EvtButtonDeleted>? tcs))
-                            tcs.TrySetResult(pkt);
-                        
-                        // TODO Delete event on FlicButton class
-                        ButtonDeleted?.Invoke(this, new ButtonDeletedEventArgs { BdAddr = pkt.BdAddr, DeletedByThisClient = pkt.DeletedByThisClient });
-                    }
+                    if(_deleteButtonTaskCompletionSources.TryRemove(
+                        pkt.BdAddr,
+                        out TaskCompletionSource<EvtButtonDeleted>? tcs))
+                        tcs.TrySetResult(pkt);
+
+                    // TODO Delete event on FlicButton class
+                    ButtonDeleted?.Invoke(
+                    this,
+                    new ButtonDeletedEventArgs { BdAddr = pkt.BdAddr, DeletedByThisClient = pkt.DeletedByThisClient });
+
                     break;
+                }
             }
         }
 
@@ -574,16 +664,16 @@ namespace FliclibDotNetClient
         {
             switch (opCode)
             {
-                case EventPacketOpCode.EVT_BUTTON_UP_OR_DOWN_OPCODE:
+                case EventPacketOpCode.EvtButtonUpDownEvent:
                     channel.OnButtonUpOrDown(eventArgs);
                     break;
-                case EventPacketOpCode.EVT_BUTTON_CLICK_OR_HOLD_OPCODE:
+                case EventPacketOpCode.EvtButtonClickOrHoldEvent:
                     channel.OnButtonClickOrHold(eventArgs);
                     break;
-                case EventPacketOpCode.EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OPCODE:
+                case EventPacketOpCode.EvtButtonSingleOrDoubleClickEvent:
                     channel.OnButtonSingleOrDoubleClick(eventArgs);
                     break;
-                case EventPacketOpCode.EVT_BUTTON_SINGLE_OR_DOUBLE_CLICK_OR_HOLD_OPCODE:
+                case EventPacketOpCode.EvtButtonSingleOrDoubleOrHoldEvent:
                     channel.OnButtonSingleOrDoubleClickOrHold(eventArgs);
                     break;
                 default:

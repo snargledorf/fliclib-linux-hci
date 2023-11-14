@@ -72,6 +72,7 @@ namespace FlicLibTest
 
                     btnAddNewFlic.Text = "Add new Flic";
                     btnAddNewFlic.Enabled = true;
+                    btnPing.Enabled = true;
 
                     GetInfoResponse getInfoResponse = await _flicClient.GetInfoAsync();
 
@@ -100,6 +101,7 @@ namespace FlicLibTest
 
             buttonsList.Controls.Clear();
             btnAddNewFlic.Enabled = false;
+            btnPing.Enabled = false;
 
             lblConnectionStatus.Text = "Connection status: Disconnected";
             lblBluetoothStatus.Text = "Bluetooth controller status:";
@@ -124,6 +126,48 @@ namespace FlicLibTest
             }
 
             buttonsList.Controls.Add(control);
+        }
+
+        private async void btnPing_Click(object sender, EventArgs e)
+        {
+            btnPing.Enabled = false;
+
+            while (_flicClient != null)
+            {
+                try
+                {
+                    var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await _flicClient.PingAsync(timeoutCts.Token);
+
+                    MessageBox.Show("Success!");
+
+                    break;
+                }
+                catch(Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
+                {
+                    var result = MessageBox.Show(
+                        "Ping timed out",
+                        "Ping failed",
+                        MessageBoxButtons.RetryCancel,
+                        MessageBoxIcon.Warning);
+
+                    if(result != DialogResult.Retry)
+                        break;
+                }
+                catch(Exception ex)
+                {
+                    var result = MessageBox.Show(
+                        ex.Message,
+                        "Ping failed",
+                        _flicClient != null ? MessageBoxButtons.RetryCancel : MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+
+                    if (result != DialogResult.Retry)
+                        break;
+                }
+            }
+
+            btnPing.Enabled = _flicClient != null;
         }
 
         private async void btnAddNewFlic_Click(object sender, EventArgs e)
