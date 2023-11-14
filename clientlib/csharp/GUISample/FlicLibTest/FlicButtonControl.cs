@@ -7,7 +7,9 @@ namespace FlicLibTest
 {
     public partial class FlicButtonControl : UserControl
     {
-        private readonly FlicButton button;
+        private readonly FlicButton? button;
+
+        private ButtonConnectionChannel? channel;
 
         public FlicButtonControl(FlicButton button)
             : this()
@@ -42,33 +44,30 @@ namespace FlicLibTest
             }
         }
 
-        public ButtonConnectionChannel Channel
+        private async void chkListen_CheckedChanged(object? sender, EventArgs e)
         {
-            get;
-            set;
-        }
+            if (button == null)
+                return;
 
-        private async void chkListen_CheckedChanged(object sender, EventArgs e)
-        {
             if (chkListen.Checked)
             {
                 try
                 {
-                    Channel = await button.OpenConnectionAsync();
+                    channel = await button.OpenConnectionAsync();
 
-                    Channel.Removed += (sender1, eventArgs) =>
+                    channel.Removed += (sender1, eventArgs) =>
                     {
                         lblStatus.Text = "Disconnected";
 
                         Listening = false;
                     };
 
-                    Channel.ConnectionStatusChanged += (sender1, eventArgs) =>
+                    channel.ConnectionStatusChanged += (sender1, eventArgs) =>
                     {
                         lblStatus.Text = eventArgs.ConnectionStatus.ToString();
                     };
 
-                    Channel.ButtonUpOrDown += (sender1, eventArgs) =>
+                    channel.ButtonUpOrDown += (sender1, eventArgs) =>
                     {
                         pictureBox.BackColor = eventArgs.ClickType == ClickType.ButtonDown ? Color.LimeGreen : Color.Red;
                     };
@@ -80,19 +79,20 @@ namespace FlicLibTest
                     Listening = false;
                 }
             }
-            else if (Channel != null)
+            else if (channel != null)
             {
                 Listening = false;
 
-                await Channel.CloseAsync();
+                await channel.CloseAsync();
             }
         }
 
         private async void btnDelete_Click(object sender, EventArgs e)
         {
-            await button.DeleteAsync();
+            if (button != null)
+                await button.DeleteAsync();
 
-            this.Parent.Controls.Remove(this);
+            this.Parent?.Controls.Remove(this);
 
             this.Dispose();
         }

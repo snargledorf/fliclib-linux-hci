@@ -76,9 +76,9 @@ namespace FlicLibTest
 
                     GetInfoResponse getInfoResponse = await _flicClient.GetInfoAsync();
 
-                    lblBluetoothStatus.Text = "Bluetooth controller status: " + getInfoResponse.bluetoothControllerState.ToString();
+                    lblBluetoothStatus.Text = "Bluetooth controller status: " + getInfoResponse.BluetoothControllerState.ToString();
 
-                    foreach (var bdAddr in getInfoResponse.verifiedButtons)
+                    foreach (var bdAddr in getInfoResponse.VerifiedButtons)
                     {
                         await GotButton(bdAddr);
                     }
@@ -174,6 +174,9 @@ namespace FlicLibTest
 
         private async void btnAddNewFlic_Click(object sender, EventArgs e)
         {
+            if (_flicClient == null)
+                return;
+
             if (scanWizardCancellationSource == null)
             {
                 var currentScanWizard = _flicClient.CreateScanWizard();

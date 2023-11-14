@@ -14,23 +14,28 @@ using System.Threading.Tasks;
 
 namespace FliclibDotNetClient
 {
-    public record GetInfoResponse(BluetoothControllerState bluetoothControllerState, Bdaddr myBdAddr,
-                                           BdAddrType myBdAddrType, byte maxPendingConnections,
-                                           short maxConcurrentlyConnectedButtons, byte currentPendingConnections,
-                                           bool currentlyNoSpaceForNewConnection,
-                                           FlicButton[]? verifiedButtons);
+    public record GetInfoResponse(BluetoothControllerState BluetoothControllerState, Bdaddr ControllerBdAddr,
+                                           BdAddrType ControllerBdAddrType, byte MaxPendingConnections,
+                                           short MaxConcurrentlyConnectedButtons, byte CurrentPendingConnections,
+                                           bool CurrentlyNoSpaceForNewConnection,
+                                           FlicButton[] VerifiedButtons);
 
-    public record GetButtonInfoResponse(Bdaddr Bdaddr, FlicButtonInfo ButtonInfo);
+    public record GetButtonInfoResponse(Bdaddr BdAddr, FlicButtonInfo ButtonInfo);
 
     /// <summary>
     /// NewVerifiedButtonEventArgs
     /// </summary>
     public class NewVerifiedButtonEventArgs : EventArgs
     {
+        public NewVerifiedButtonEventArgs(FlicButton button)
+        {
+            Button = button;
+        }
+
         /// <summary>
         /// Bluetooth device address for new verified button
         /// </summary>
-        public FlicButton? Button { get; internal set; }
+        public FlicButton Button { get; }
     }
 
     /// <summary>
@@ -134,9 +139,9 @@ namespace FliclibDotNetClient
         /// </summary>
         public event EventHandler<SpaceForNewConnectionEventArgs>? GotSpaceForNewConnection;
 
-        public event EventHandler OnDisconnect;
+        public event EventHandler? OnDisconnect;
 
-        public event EventHandler<Exception> OnException;
+        public event EventHandler<Exception>? OnException;
 
         /// <summary>
         /// Raised when a button is deleted, or when this client tries to delete a non-existing button.
@@ -187,7 +192,7 @@ namespace FliclibDotNetClient
                 response.MaxConcurrentlyConnectedButtons,
                 response.CurrentPendingConnections,
                 response.CurrentlyNoSpaceForNewConnection,
-                response.BdAddrOfVerifiedButtons?.Select(bdaddr => new FlicButton(this, bdaddr)).ToArray());
+                response.BdAddrOfVerifiedButtons?.Select(bdaddr => new FlicButton(this, bdaddr)).ToArray() ?? Array.Empty<FlicButton>());
         }
 
         public ButtonScanner CreateScanner()
@@ -514,7 +519,7 @@ namespace FliclibDotNetClient
                     pkt.Parse(packet);
                     NewVerifiedButton?.Invoke(
                     this,
-                    new NewVerifiedButtonEventArgs { Button = new FlicButton(this, pkt.BdAddr) });
+                    new NewVerifiedButtonEventArgs(new(this, pkt.BdAddr)));
 
                     break;
                 }
