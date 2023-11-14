@@ -6,33 +6,11 @@ using System.Threading.Tasks;
 
 namespace FliclibDotNetClient
 {
-    /// <summary>
-    /// Information about found button
-    /// </summary>
-    public class ScanWizardButtonInfoEventArgs : EventArgs
-    {
-        /// <summary>
-        /// Bluetooth device address
-        /// </summary>
-        public Bdaddr BdAddr { get; internal set; }
+    public record ScanWizardButtonInfo(Bdaddr BdAddr, string? Name);
 
-        /// <summary>
-        /// Advertised name
-        /// </summary>
-        public string? Name { get; internal set; }
-    }
-
-    /// <summary>
-    /// Information about result of scan wizard
-    /// </summary>
-    public class ScanWizardCompletedEventArgs : ScanWizardButtonInfoEventArgs
-    {
-        /// <summary>
-        /// The result.
-        /// If WizardSuccess, a new button has been found and the NewVerifiedButton event will be raised on the FlicClient.
-        /// </summary>
-        public ScanWizardResult Result { get; internal set; }
-    }
+    public record ScanWizardResults(
+        ScanWizardResult Result,
+        IEnumerable<ScanWizardButtonInfo> ConnectedButtons);
 
     /// <summary>
     /// A high level scan wizard.
@@ -41,10 +19,15 @@ namespace FliclibDotNetClient
     /// </summary>
     public class ScanWizard
     {
+        private const int ScanTimeoutSeconds = 20;
+
         internal uint ScanWizardId = FlicIdGenerator<ScanWizard>.NextId();
 
-        internal Bdaddr BdAddr;
-        internal string? Name;
+        private readonly TaskCompletionSource<ScanWizardResults> completionSource = new();
+
+        private ScanWizardButtonInfo? publicButton;
+
+        private readonly Dictionary<Bdaddr, ScanWizardButtonInfo> connectedButtons = new();
 
         internal ScanWizard(FlicClient flicClient)
         {
@@ -62,41 +45,87 @@ namespace FliclibDotNetClient
         /// Called at most once when a public button has been found. The server will now attempt to connect to the button.
         /// When this event has been received the FoundPrivateButton event will not be raised.
         /// </summary>
-        public event EventHandler<ScanWizardButtonInfoEventArgs>? FoundPublicButton;
+        public event EventHandler<ScanWizardButtonInfo>? FoundPublicButton;
 
         /// <summary>
         /// Called at most once when a public button has connected. The server will now attempt to pair to the button.
         /// When this event has been received the FoundPrivateButton or FoundPublicButton will not be raised.
         /// </summary>
-        public event EventHandler<ScanWizardButtonInfoEventArgs>? ButtonConnected;
+        public event EventHandler<ScanWizardButtonInfo>? ButtonConnected;
 
-        /// <summary>
-        /// Called when the scan wizard has completed for any reason.
-        /// </summary>
-        public event EventHandler<ScanWizardCompletedEventArgs>? Completed;
+        public async Task<ScanWizardResults> RunAsync(CancellationToken cancellationToken = default)
+        {
+            await FlicClient.StartAsync(this, cancellationToken).ConfigureAwait(false);
 
-        public ValueTask StartAsync(CancellationToken cancellationToken = default) => FlicClient.StartAsync(this, cancellationToken);
+            // Create a cancellation source to try and force cancellation if the clean method takes too long
+            var forceCancelTokenSource = new CancellationTokenSource();
+            var forceCancelReg = forceCancelTokenSource.Token
+                .Register(
+                    () =>
+                    {
+                        // Forced cancel timeout, try to cancel the task
+                        completionSource.TrySetCanceled(cancellationToken);
+                    });
 
-        public ValueTask CancelAsync(CancellationToken cancellationToken = default) => FlicClient.CancelAsync(this, cancellationToken);
+            // Register against the methods cancellation token in order to issue a cancellation request
+            var cancelReg = cancellationToken.Register(
+                async () =>
+                {
+                    // Trigger forced cancellation after a timeout period
+                    forceCancelTokenSource.CancelAfter(TimeSpan.FromSeconds(ScanTimeoutSeconds));
+
+                    try
+                    {
+                        await FlicClient.CancelAsync(this, forceCancelTokenSource.Token).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
+                    {
+                        // Forced timeout elapsed, try cancelling the task
+                        completionSource.TrySetCanceled(cancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        // An unexpected exception occurred, fail the task
+                        completionSource.TrySetException(ex);
+                    }
+                });
+
+            var result = await completionSource.Task.ConfigureAwait(false);
+
+            // Unregister so that we don't trigger cancellations after we have received the result
+            forceCancelReg.Unregister();
+            cancelReg.Unregister();
+
+            return result;
+        }
 
         protected internal virtual void OnFoundPrivateButton()
         {
             FoundPrivateButton?.Invoke(this, EventArgs.Empty);
         }
 
-        protected internal virtual void OnFoundPublicButton(ScanWizardButtonInfoEventArgs e)
+        protected internal virtual void OnFoundPublicButton(ScanWizardButtonInfo e)
         {
+            publicButton = e;
             FoundPublicButton?.Invoke(this, e);
         }
 
-        protected internal virtual void OnButtonConnected(ScanWizardButtonInfoEventArgs e)
+        protected internal virtual void OnButtonConnected()
         {
-            ButtonConnected?.Invoke(this, e);
+            if (publicButton == null)
+                return;
+
+            connectedButtons[publicButton.BdAddr] = publicButton;
+
+            ButtonConnected?.Invoke(this, publicButton);
+
+            publicButton = null;
         }
 
-        protected internal virtual void OnCompleted(ScanWizardCompletedEventArgs e)
+        protected internal virtual void OnCompleted(ScanWizardResult e)
         {
-            Completed?.Invoke(this, e);
+            publicButton = null;
+            completionSource.SetResult(new(e, connectedButtons.Values.ToArray()));
         }
     }
 }

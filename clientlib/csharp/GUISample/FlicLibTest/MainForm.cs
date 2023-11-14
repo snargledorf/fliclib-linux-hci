@@ -23,7 +23,7 @@ namespace FlicLibTest
     public partial class MainForm : Form
     {
         private FlicClient _flicClient;
-        private ScanWizard _currentScanWizard;
+        private CancellationTokenSource? scanWizardCancellationSource;
 
         public MainForm()
         {
@@ -97,7 +97,9 @@ namespace FlicLibTest
         private void OnClientDisconnected()
         {
             _flicClient = null;
-            _currentScanWizard = null;
+
+            scanWizardCancellationSource?.Cancel();
+            scanWizardCancellationSource = null;
 
             buttonsList.Controls.Clear();
             btnAddNewFlic.Enabled = false;
@@ -172,45 +174,47 @@ namespace FlicLibTest
 
         private async void btnAddNewFlic_Click(object sender, EventArgs e)
         {
-            if (_currentScanWizard == null)
+            if (scanWizardCancellationSource == null)
             {
-                lblScanWizardStatus.Text = "Press and hold down your Flic button until it connects";
+                var currentScanWizard = _flicClient.CreateScanWizard();
 
-                _currentScanWizard = _flicClient.CreateScanWizard();
-
-                _currentScanWizard.FoundPrivateButton += (o, args) =>
+                currentScanWizard.FoundPrivateButton += (o, args) =>
                 {
                     lblScanWizardStatus.Text = "Hold down your Flic button for 7 seconds";
                 };
 
-                _currentScanWizard.FoundPublicButton += (o, args) =>
+                currentScanWizard.FoundPublicButton += (o, args) =>
                 {
                     lblScanWizardStatus.Text = "Found button " + args.BdAddr.ToString() + ", now connecting...";
                 };
 
-                _currentScanWizard.ButtonConnected += (o, args) =>
+                currentScanWizard.ButtonConnected += (o, args) =>
                 {
                     lblScanWizardStatus.Text = "Connected to " + args.BdAddr.ToString() + ", now pairing...";
                 };
 
-                _currentScanWizard.Completed += (o, args) =>
-                {
-                    lblScanWizardStatus.Text = "Result: " + args.Result;
-                    _currentScanWizard = null;
-                    btnAddNewFlic.Text = "Add new Flic";
-                };
-
-                await _currentScanWizard.StartAsync();
-
                 btnAddNewFlic.Text = "Cancel";
+                lblScanWizardStatus.Text = "Press and hold down your Flic button until it connects";
+
+                try
+                {
+                    scanWizardCancellationSource = new CancellationTokenSource();
+                    var results = await currentScanWizard.RunAsync(scanWizardCancellationSource.Token);
+                    lblScanWizardStatus.Text = "Result: " + results.Result;
+                }
+                catch (Exception ex)
+                {
+                    lblScanWizardStatus.Text = "Error: " + ex.Message;
+                }
+                finally
+                {
+                    btnAddNewFlic.Text = "Add new Flic";
+                    scanWizardCancellationSource = null;
+                }
             }
             else
             {
-                await _currentScanWizard.CancelAsync();
-
-                btnAddNewFlic.Text = "Add new Flic";
-
-                _currentScanWizard = null;
+                scanWizardCancellationSource.Cancel();
             }
         }
     }

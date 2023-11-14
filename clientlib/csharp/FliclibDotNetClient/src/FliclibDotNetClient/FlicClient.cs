@@ -265,9 +265,7 @@ namespace FliclibDotNetClient
         internal ValueTask StartAsync(ScanWizard scanWizard, CancellationToken cancellationToken = default)
         {
             if (!_scanWizards.TryAdd(scanWizard.ScanWizardId, scanWizard))
-            {
                 throw new ArgumentException("Scan wizard already added");
-            }
 
             return SendCommandAsync(new CmdCreateScanWizard { ScanWizardId = scanWizard.ScanWizardId }, cancellationToken);
         }
@@ -280,9 +278,7 @@ namespace FliclibDotNetClient
         internal ValueTask CancelAsync(ScanWizard scanWizard, CancellationToken cancellationToken = default)
         {
             if (scanWizard == null)
-            {
                 throw new ArgumentNullException(nameof(scanWizard));
-            }
 
             return SendCommandAsync(new CmdCancelScanWizard { ScanWizardId = scanWizard.ScanWizardId }, cancellationToken);
         }
@@ -593,7 +589,9 @@ namespace FliclibDotNetClient
                 {
                     var pkt = new EvtScanWizardFoundPrivateButton();
                     pkt.Parse(packet);
-                    _scanWizards[pkt.ScanWizardId].OnFoundPrivateButton();
+
+                    if (_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
+                        wizard.OnFoundPrivateButton();
 
                     break;
                 }
@@ -602,13 +600,8 @@ namespace FliclibDotNetClient
                     var pkt = new EvtScanWizardFoundPublicButton();
                     pkt.Parse(packet);
 
-                    if(_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
-                    {
-                        wizard.BdAddr = pkt.BdAddr;
-                        wizard.Name = pkt.Name;
-                        wizard.OnFoundPublicButton(
-                            new ScanWizardButtonInfoEventArgs { BdAddr = wizard.BdAddr, Name = wizard.Name });
-                    }
+                    if (_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
+                        wizard.OnFoundPublicButton(new(pkt.BdAddr, pkt.Name));
 
                     break;
                 }
@@ -616,9 +609,8 @@ namespace FliclibDotNetClient
                 {
                     var pkt = new EvtScanWizardButtonConnected();
                     pkt.Parse(packet);
-                    if(_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
-                        wizard.OnButtonConnected(
-                            new ScanWizardButtonInfoEventArgs { BdAddr = wizard.BdAddr, Name = wizard.Name });
+                    if (_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
+                        wizard.OnButtonConnected();
 
                     break;
                 }
@@ -627,16 +619,8 @@ namespace FliclibDotNetClient
                     var pkt = new EvtScanWizardCompleted();
                     pkt.Parse(packet);
 
-                    if(_scanWizards.TryRemove(pkt.ScanWizardId, out ScanWizard? wizard))
-                    {
-                        var eventArgs = new ScanWizardCompletedEventArgs
-                        {
-                            BdAddr = wizard.BdAddr,
-                            Name = wizard.Name,
-                            Result = pkt.Result
-                        };
-                        wizard.OnCompleted(eventArgs);
-                    }
+                    if (_scanWizards.TryRemove(pkt.ScanWizardId, out ScanWizard? wizard))
+                        wizard.OnCompleted(pkt.Result);
 
                     break;
                 }
