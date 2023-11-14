@@ -22,7 +22,7 @@ namespace FlicLibTest
 {
     public partial class MainForm : Form
     {
-        private FlicClient _flicClient;
+        private FlicClient? _flicClient;
         private CancellationTokenSource? scanWizardCancellationSource;
 
         public MainForm()

@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <OutputType>WinExe</OutputType>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
     <UseWindowsForms>true</UseWindowsForms>
     <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
   </PropertyGroup>
@@ -11,6 +11,8 @@
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject></StartupObject>
+    <Nullable>enable</Nullable>
+    <Copyright>Copyright ©  2016</Copyright>
   </PropertyGroup>
   <ItemGroup>
     <Compile Update="FlicButtonControl.cs">
