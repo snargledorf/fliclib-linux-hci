@@ -5,14 +5,14 @@ using System.Threading.Tasks;
 
 namespace FliclibDotNetClient
 {
-    internal class FlicPacketWriter
+    internal class FlicStreamWriter
     {
         private const int HeaderOpCodeSizeBytes = 1;
         private const int HeaderDataLengthSizeBytes = 2;
 
         private readonly Stream backingStream;
 
-        public FlicPacketWriter(Stream stream)
+        public FlicStreamWriter(Stream stream)
         {
             backingStream = stream;
         }

@@ -6,6 +6,8 @@ using System.Net.NetworkInformation;
 using System.Threading.Tasks;
 using System.Text;
 using System.Threading;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Collections;
 
 namespace FliclibDotNetClient
 {
@@ -33,281 +35,440 @@ namespace FliclibDotNetClient
         EvtButtonDeleted = 19,
     }
 
-    internal abstract class EventPacket
+    internal struct EvtAdvertisement
     {
-        internal void Parse(FlicPacket packet)
+        public EvtAdvertisement(
+            uint scanId,
+            Bdaddr bdAddr,
+            string? name,
+            int rssi,
+            bool isPrivate,
+            bool alreadyVerified,
+            bool alreadyConnectedToThisDevice,
+            bool alreadyConnectedToOtherDevice)
+            : this()
         {
-            var stream = new ReadOnlyMemoryStream(packet.Data);
-            ParseInternal(new BinaryReader(stream));
+            ScanId = scanId;
+            BdAddr = bdAddr;
+            Name = name;
+            Rssi = rssi;
+            IsPrivate = isPrivate;
+            AlreadyVerified = alreadyVerified;
+            AlreadyConnectedToThisDevice = alreadyConnectedToThisDevice;
+            AlreadyConnectedToOtherDevice = alreadyConnectedToOtherDevice;
         }
 
-        protected abstract void ParseInternal(BinaryReader reader);
-    }
+        internal uint ScanId { get; }
+        internal Bdaddr BdAddr { get; }
+        internal string? Name { get; }
+        internal int Rssi { get; }
+        internal bool IsPrivate { get; }
+        internal bool AlreadyVerified { get; }
+        internal bool AlreadyConnectedToThisDevice { get; }
+        internal bool AlreadyConnectedToOtherDevice { get; }
 
-    internal class EvtAdvertisementPacket : EventPacket
-    {
-        internal uint ScanId { get; private set; }
-        internal Bdaddr BdAddr { get; private set; }
-        internal string? Name { get; private set; }
-        internal int Rssi { get; private set; }
-        internal bool IsPrivate { get; private set; }
-        internal bool AlreadyVerified { get; private set; }
-        internal bool AlreadyConnectedToThisDevice { get; private set; }
-        internal bool AlreadyConnectedToOtherDevice { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public static EvtAdvertisement FromPacket(FlicPacket packet)
         {
-            ScanId = reader.ReadUInt32();
-            BdAddr = reader.ReadBdaddr();
+            using var reader = new FlicPacketParser(packet);
 
-            int nameLen = reader.ReadByte();
-            Name = reader.ReadFlicString(nameLen);
-
-            Rssi = reader.ReadSByte();
-            IsPrivate = reader.ReadBoolean();
-            AlreadyVerified = reader.ReadBoolean();
-            AlreadyConnectedToThisDevice = reader.ReadBoolean();
-            AlreadyConnectedToOtherDevice = reader.ReadBoolean();
-        }
-    }
-
-    internal class EvtCreateConnectionChannelResponse : EventPacket
-    {
-        internal uint ConnId { get; private set; }
-        internal CreateConnectionChannelError Error { get; private set; }
-        internal ConnectionStatus ConnectionStatus { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
-        {
-            ConnId = reader.ReadUInt32();
-            Error = (CreateConnectionChannelError)reader.ReadByte();
-            ConnectionStatus = (ConnectionStatus)reader.ReadByte();
+            return new EvtAdvertisement(
+                reader.ReadUInt32(),
+                reader.ReadBdAddr(),
+                reader.ReadString(reader.ReadByte()),
+                reader.ReadSByte(),
+                reader.ReadBoolean(),
+                reader.ReadBoolean(),
+                reader.ReadBoolean(),
+                reader.ReadBoolean());
         }
     }
 
-    internal class EvtConnectionStatusChanged : EventPacket
+    internal struct EvtCreateConnectionChannelResponse
     {
-        internal uint ConnId { get; private set; }
-        internal ConnectionStatus ConnectionStatus { get; private set; }
-        internal DisconnectReason DisconnectReason { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtCreateConnectionChannelResponse(uint connId, CreateConnectionChannelError error, ConnectionStatus connectionStatus)
+            : this()
         {
-            ConnId = reader.ReadUInt32();
-            ConnectionStatus = (ConnectionStatus)reader.ReadByte();
-            DisconnectReason = (DisconnectReason)reader.ReadByte();
+            ConnId = connId;
+            Error = error;
+            ConnectionStatus = connectionStatus;
+        }
+
+        internal uint ConnId { get; }
+        internal CreateConnectionChannelError Error { get; }
+        internal ConnectionStatus ConnectionStatus { get; }
+
+        public static EvtCreateConnectionChannelResponse FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(
+                reader.ReadUInt32(),
+                (CreateConnectionChannelError)reader.ReadByte(),
+                (ConnectionStatus)reader.ReadByte());
         }
     }
 
-    internal class EvtConnectionChannelRemoved : EventPacket
+    internal struct EvtConnectionStatusChanged
     {
-        internal uint ConnId { get; private set; }
-        internal RemovedReason RemovedReason { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtConnectionStatusChanged(uint connId, ConnectionStatus connectionStatus, DisconnectReason disconnectReason)
+            : this()
         {
-            ConnId = reader.ReadUInt32();
-            RemovedReason = (RemovedReason)reader.ReadByte();
+            ConnId = connId;
+            ConnectionStatus = connectionStatus;
+            DisconnectReason = disconnectReason;
+        }
+
+        internal uint ConnId { get; }
+        internal ConnectionStatus ConnectionStatus { get; }
+        internal DisconnectReason DisconnectReason { get; }
+
+        public static EvtConnectionStatusChanged FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(reader.ReadUInt32(), (ConnectionStatus)reader.ReadByte(), (DisconnectReason)reader.ReadByte());
         }
     }
 
-    internal class EvtButtonEvent : EventPacket
+    internal struct EvtConnectionChannelRemoved
     {
-        internal uint ConnId { get; private set; }
-        internal ClickType ClickType { get; private set; }
-        internal bool WasQueued { get; private set; }
-        internal uint TimeDiff { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtConnectionChannelRemoved(uint connId, RemovedReason removedReason)
+            : this()
         {
-            ConnId = reader.ReadUInt32();
-            ClickType = (ClickType)reader.ReadByte();
-            WasQueued = reader.ReadBoolean();
-            TimeDiff = reader.ReadUInt32();
+            ConnId = connId;
+            RemovedReason = removedReason;
+        }
+
+        internal uint ConnId { get; }
+        internal RemovedReason RemovedReason { get; }
+
+        public static EvtConnectionChannelRemoved FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(reader.ReadUInt32(), (RemovedReason)reader.ReadByte());
         }
     }
 
-    internal class EvtNewVerifiedButton : EventPacket
+    internal struct EvtButtonClick
     {
-        internal Bdaddr BdAddr { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtButtonClick(uint connId, ClickType clickType, bool wasQueued, uint timeDiff)
+            : this()
         {
-            BdAddr = reader.ReadBdaddr();
+            ConnId = connId;
+            ClickType = clickType;
+            WasQueued = wasQueued;
+            TimeDiff = timeDiff;
+        }
+
+        internal uint ConnId { get; }
+        internal ClickType ClickType { get; }
+        internal bool WasQueued { get; }
+        internal uint TimeDiff { get; }
+
+        public static EvtButtonClick FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(reader.ReadUInt32(), (ClickType)reader.ReadByte(), reader.ReadBoolean(), reader.ReadUInt32());
         }
     }
 
-    internal class EvtGetInfoResponse : EventPacket
+    internal struct EvtNewVerifiedButton
     {
-        internal BluetoothControllerState BluetoothControllerState { get; private set; }
-        internal Bdaddr MyBdAddr { get; private set; }
-        internal BdAddrType MyBdAddrType { get; private set; }
-        internal byte MaxPendingConnections { get; private set; }
-        internal short MaxConcurrentlyConnectedButtons { get; private set; }
-        internal byte CurrentPendingConnections { get; private set; }
-        internal bool CurrentlyNoSpaceForNewConnection { get; private set; }
-        internal Bdaddr[]? BdAddrOfVerifiedButtons { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtNewVerifiedButton(Bdaddr bdAddr)
+            : this()
         {
-            BluetoothControllerState = (BluetoothControllerState)reader.ReadByte();
-            MyBdAddr = reader.ReadBdaddr();
-            MyBdAddrType = (BdAddrType)reader.ReadByte();
-            MaxPendingConnections = reader.ReadByte();
-            MaxConcurrentlyConnectedButtons = reader.ReadInt16();
-            CurrentPendingConnections = reader.ReadByte();
-            CurrentlyNoSpaceForNewConnection = reader.ReadBoolean();
+            BdAddr = bdAddr;
+        }
 
-            var nbVerifiedButtons = reader.ReadUInt16();
-            BdAddrOfVerifiedButtons = new Bdaddr[nbVerifiedButtons];
+        internal Bdaddr BdAddr { get; }
 
-            for (var i = 0; i < nbVerifiedButtons; i++)
-            {
-                BdAddrOfVerifiedButtons[i] = reader.ReadBdaddr();
-            }
+        public static EvtNewVerifiedButton FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(reader.ReadBdAddr());
         }
     }
 
-    internal class EvtNoSpaceForNewConnection : EventPacket
+    internal struct EvtGetInfoResponse
     {
-        internal byte MaxConcurrentlyConnectedButtons { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtGetInfoResponse(
+            BluetoothControllerState bluetoothControllerState,
+            Bdaddr controllerBdAddr,
+            BdAddrType controllerBdAddType,
+            byte maxPendingConnections,
+            short maxConcurrentlyConnectedButtons,
+            byte currentPendingConnections,
+            bool currentlyNoSpaceForNewConnection,
+            Bdaddr[] verifiedButtonBdAddrs)
         {
-            MaxConcurrentlyConnectedButtons = reader.ReadByte();
+            BluetoothControllerState = bluetoothControllerState;
+            ControllerBdAddr = controllerBdAddr;
+            ControllerBdAddrType = controllerBdAddType;
+            MaxPendingConnections = maxPendingConnections;
+            MaxConcurrentlyConnectedButtons = maxConcurrentlyConnectedButtons;
+            CurrentPendingConnections = currentPendingConnections;
+            CurrentlyNoSpaceForNewConnection = currentlyNoSpaceForNewConnection;
+            VerifiedButtonBdAddrs = verifiedButtonBdAddrs;
+        }
+
+        internal BluetoothControllerState BluetoothControllerState { get; }
+        internal Bdaddr ControllerBdAddr { get; }
+        internal BdAddrType ControllerBdAddrType { get; }
+        internal byte MaxPendingConnections { get; }
+        internal short MaxConcurrentlyConnectedButtons { get; }
+        internal byte CurrentPendingConnections { get; }
+        internal bool CurrentlyNoSpaceForNewConnection { get; }
+        internal Bdaddr[] VerifiedButtonBdAddrs { get; }
+
+        public static EvtGetInfoResponse FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+
+            var bluetoothControllerState = (BluetoothControllerState)reader.ReadByte();
+            var controllerBdAddr = reader.ReadBdAddr();
+            var controllerBdAddrType = (BdAddrType)reader.ReadByte();
+            var maxPendingConnections = reader.ReadByte();
+            var maxConcurrentlyConnectedButtons = reader.ReadInt16();
+            var currentPendingConnections = reader.ReadByte();
+            var currentlyNoSpaceForNewConnection = reader.ReadBoolean();
+
+            var verifiedButtonsCount = reader.ReadUInt16();
+            var verifiedButtonBdAddrs = new Bdaddr[verifiedButtonsCount];
+
+            for (var i = 0; i < verifiedButtonsCount; i++)
+                verifiedButtonBdAddrs[i] = reader.ReadBdAddr();
+
+            return new(
+                bluetoothControllerState,
+                controllerBdAddr,
+                controllerBdAddrType,
+                maxPendingConnections,
+                maxConcurrentlyConnectedButtons,
+                currentPendingConnections,
+                currentlyNoSpaceForNewConnection,
+                verifiedButtonBdAddrs);
         }
     }
 
-    internal class EvtGotSpaceForNewConnection : EventPacket
+    internal struct EvtNoSpaceForNewConnection
     {
-        internal byte MaxConcurrentlyConnectedButtons { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtNoSpaceForNewConnection(byte maxConcurrentlyConnectedButtons)
+            : this()
         {
-            MaxConcurrentlyConnectedButtons = reader.ReadByte();
+            MaxConcurrentlyConnectedButtons = maxConcurrentlyConnectedButtons;
+        }
+
+        internal byte MaxConcurrentlyConnectedButtons { get; }
+
+        public static EvtNoSpaceForNewConnection FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(reader.ReadByte());
         }
     }
 
-    internal class EvtBluetoothControllerStateChange : EventPacket
+    internal struct EvtGotSpaceForNewConnection
     {
-        internal BluetoothControllerState State { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtGotSpaceForNewConnection(byte maxConcurrentlyConnectedButtons)
+            : this()
         {
-            State = (BluetoothControllerState)reader.ReadByte();
+            MaxConcurrentlyConnectedButtons = maxConcurrentlyConnectedButtons;
+        }
+
+        internal byte MaxConcurrentlyConnectedButtons { get; }
+
+        public static EvtGotSpaceForNewConnection FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(reader.ReadByte());
         }
     }
 
-    internal class EvtPingResponse : EventPacket
+    internal struct EvtBluetoothControllerStateChange
     {
-        internal uint PingId { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtBluetoothControllerStateChange(BluetoothControllerState state)
+            : this()
         {
-            PingId = reader.ReadUInt32();
+            State = state;
+        }
+
+        internal BluetoothControllerState State { get; }
+
+        public static EvtBluetoothControllerStateChange FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new((BluetoothControllerState)reader.ReadByte());
         }
     }
 
-    internal class EvtGetButtonInfoResponse : EventPacket
+    internal struct EvtPingResponse
+    {
+        public EvtPingResponse(uint pingId)
+            : this()
+        {
+            PingId = pingId;
+        }
+
+        internal uint PingId { get; }
+
+        public static EvtPingResponse FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(reader.ReadUInt32());
+        }
+    }
+
+    internal struct EvtGetButtonInfoResponse
     {
         private static readonly byte[] EmptyUuid = new byte[16];
 
-        internal Bdaddr BdAddr { get; private set; }
-        internal string? Uuid { get; private set; }
-        internal string? Color { get; private set; }
-        internal string? SerialNumber { get; private set; }
-        internal int FlicVersion { get; private set; }
-        internal uint FirmwareVersion { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtGetButtonInfoResponse(Bdaddr bdAddr, string? uuid)
+            : this(bdAddr, uuid, default, default, default, default)
         {
-            BdAddr = reader.ReadBdaddr();
+        }
+
+        public EvtGetButtonInfoResponse(Bdaddr bdAddr, string? uuid, string? color, string? serialNumber, int flicVersion, uint firmwareVersion)
+            : this()
+        {
+            BdAddr = bdAddr;
+            Uuid = uuid;
+            Color = color;
+            SerialNumber = serialNumber;
+            FlicVersion = flicVersion;
+            FirmwareVersion = firmwareVersion;
+        }
+
+        internal Bdaddr BdAddr { get; }
+        internal string? Uuid { get; }
+        internal string? Color { get; }
+        internal string? SerialNumber { get; }
+        internal int FlicVersion { get; }
+        internal uint FirmwareVersion { get; }
+
+        public static EvtGetButtonInfoResponse FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            var bdAddr = reader.ReadBdAddr();
 
             ReadOnlySpan<byte> uuidBytes = reader.ReadBytes(16);
             if (uuidBytes.Length != 16)
                 throw new EndOfStreamException("End of stream while reading Uuid");
 
+            string? uuid;
             if (uuidBytes.SequenceEqual(EmptyUuid))
-                Uuid = null;
+                uuid = null;
             else
-                Uuid = Convert.ToHexString(uuidBytes);
+                uuid = Convert.ToHexString(uuidBytes);
 
             // For old protocol
-            if (reader.PeekChar() == -1)
-                return;
+            if (reader.IsComplete)
+                return new(bdAddr, uuid);
 
             int colorLen = reader.ReadByte();
-            Color = reader.ReadFlicString(colorLen);
+            var color = reader.ReadString(colorLen);
             if (colorLen == 0)
-                Color = null;
+                color = null;
 
             int serialNumberLen = reader.ReadByte();
-            SerialNumber = reader.ReadFlicString(serialNumberLen);
-            if (SerialNumber.Length == 0)
-                SerialNumber = null;
+            var serialNumber = reader.ReadString(serialNumberLen);
+            if (serialNumber.Length == 0)
+                serialNumber = null;
 
-            FlicVersion = reader.ReadByte();
-            FirmwareVersion = reader.ReadUInt32();
+            var flicVersion = reader.ReadByte();
+            var firmwareVersion = reader.ReadUInt32();
+
+            return new(bdAddr, uuid, color, serialNumber, flicVersion, firmwareVersion);
         }
     }
 
-    internal class EvtScanWizardFoundPrivateButton : EventPacket
+    internal struct EvtScanWizardFoundPrivateButton
     {
-        internal uint ScanWizardId { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtScanWizardFoundPrivateButton(uint scanWizardId)
+            : this()
         {
-            ScanWizardId = reader.ReadUInt32();
+            ScanWizardId = scanWizardId;
+        }
+
+        internal uint ScanWizardId { get; }
+
+        public static EvtScanWizardFoundPrivateButton FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(reader.ReadUInt32());
         }
     }
 
-    internal class EvtScanWizardFoundPublicButton : EventPacket
+    internal struct EvtScanWizardFoundPublicButton
     {
-        internal uint ScanWizardId { get; private set; }
-        internal Bdaddr BdAddr { get; private set; }
-        internal string? Name { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtScanWizardFoundPublicButton(uint scanWizardId, Bdaddr bdAddr, string name)
+            : this()
         {
-            ScanWizardId = reader.ReadUInt32();
-            BdAddr = reader.ReadBdaddr();
+            ScanWizardId = scanWizardId;
+            BdAddr = bdAddr;
+            Name = name;
+        }
 
-            int nameLen = reader.ReadByte();
-            Name = reader.ReadFlicString(nameLen);
+        internal uint ScanWizardId { get; }
+        internal Bdaddr BdAddr { get; }
+        internal string Name { get; }
+
+        public static EvtScanWizardFoundPublicButton FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(reader.ReadUInt32(), reader.ReadBdAddr(), reader.ReadString(reader.ReadByte()));
         }
     }
 
-    internal class EvtScanWizardButtonConnected : EventPacket
+    internal struct EvtScanWizardButtonConnected
     {
-        internal uint ScanWizardId { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtScanWizardButtonConnected(uint scanWizardId)
+            : this()
         {
-            ScanWizardId = reader.ReadUInt32();
+            ScanWizardId = scanWizardId;
+        }
+
+        internal uint ScanWizardId { get; }
+
+        public static EvtScanWizardButtonConnected FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(reader.ReadUInt32());
         }
     }
 
-    internal class EvtScanWizardCompleted : EventPacket
+    internal struct EvtScanWizardCompleted
     {
-        internal uint ScanWizardId { get; private set; }
-        internal ScanWizardResult Result { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtScanWizardCompleted(uint scanWizardId, ScanWizardResult result)
+            : this()
         {
-            ScanWizardId = reader.ReadUInt32();
-            Result = (ScanWizardResult)reader.ReadByte();
+            ScanWizardId = scanWizardId;
+            Result = result;
+        }
+
+        internal uint ScanWizardId { get; }
+        internal ScanWizardResult Result { get; }
+
+        public static EvtScanWizardCompleted FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(reader.ReadUInt32(), (ScanWizardResult)reader.ReadByte());
         }
     }
 
-    internal class EvtButtonDeleted : EventPacket
+    internal struct EvtButtonDeleted
     {
-        internal Bdaddr BdAddr { get; private set; }
-        internal bool DeletedByThisClient { get; private set; }
-
-        protected override void ParseInternal(BinaryReader reader)
+        public EvtButtonDeleted(Bdaddr bdAddr, bool deletedByThisClient) 
+            : this()
         {
-            BdAddr = reader.ReadBdaddr();
-            DeletedByThisClient = reader.ReadBoolean();
+            BdAddr = bdAddr;
+            DeletedByThisClient = deletedByThisClient;
+        }
+
+        internal Bdaddr BdAddr { get; }
+        internal bool DeletedByThisClient { get; }
+
+        public static EvtButtonDeleted FromPacket(FlicPacket packet)
+        {
+            using var reader = new FlicPacketParser(packet);
+            return new(reader.ReadBdAddr(), reader.ReadBoolean());
         }
     }
 }

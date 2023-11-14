@@ -106,8 +106,8 @@ namespace FliclibDotNetClient
         private readonly int port;
         private readonly TcpClient tcpClient;
 
-        private FlicPacketReader? reader;
-        private FlicPacketWriter? writer;
+        private FlicStreamReader? reader;
+        private FlicStreamWriter? writer;
 
         private bool disposedValue;
 
@@ -153,8 +153,8 @@ namespace FliclibDotNetClient
             await tcpClient.ConnectAsync(host, port, cancellationToken);
 
             var stream = tcpClient.GetStream();
-            reader = new FlicPacketReader(stream);
-            writer = new FlicPacketWriter(stream);
+            reader = new FlicStreamReader(stream);
+            writer = new FlicStreamWriter(stream);
 
             _ = HandleEventsAsync(handleEventsCancellationSource.Token);
         }
@@ -186,13 +186,13 @@ namespace FliclibDotNetClient
 
             return new(
                 response.BluetoothControllerState,
-                response.MyBdAddr,
-                response.MyBdAddrType,
+                response.ControllerBdAddr,
+                response.ControllerBdAddrType,
                 response.MaxPendingConnections,
                 response.MaxConcurrentlyConnectedButtons,
                 response.CurrentPendingConnections,
                 response.CurrentlyNoSpaceForNewConnection,
-                response.BdAddrOfVerifiedButtons?.Select(bdaddr => new FlicButton(this, bdaddr)).ToArray() ?? Array.Empty<FlicButton>());
+                response.VerifiedButtonBdAddrs?.Select(bdaddr => new FlicButton(this, bdaddr)).ToArray() ?? Array.Empty<FlicButton>());
         }
 
         public ButtonScanner CreateScanner()
@@ -439,8 +439,7 @@ namespace FliclibDotNetClient
             {
                 case EventPacketOpCode.EvtAdvertisementPacket:
                 {
-                    var pkt = new EvtAdvertisementPacket();
-                    pkt.Parse(packet);
+                    var pkt = EvtAdvertisement.FromPacket(packet);
 
                     if(_scanners.TryGetValue(pkt.ScanId, out ButtonScanner? scanner))
                         scanner.OnAdvertisementPacket(
@@ -459,10 +458,9 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtCreateConnectionChannelResponse:
                 {
-                    var pkt = new EvtCreateConnectionChannelResponse();
-                    pkt.Parse(packet);
+                    var pkt = EvtCreateConnectionChannelResponse.FromPacket(packet);
 
-                    if(_createConnectionChannelCompletionSources.TryGetValue(pkt.ConnId, out var tcs))
+                    if (_createConnectionChannelCompletionSources.TryGetValue(pkt.ConnId, out var tcs))
                     {
                         tcs.TrySetResult(pkt);
                     }
@@ -471,8 +469,7 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtConnectionStatusChanged:
                 {
-                    var pkt = new EvtConnectionStatusChanged();
-                    pkt.Parse(packet);
+                    var pkt = EvtConnectionStatusChanged.FromPacket(packet);
 
                     var channel = _connectionChannels[pkt.ConnId];
                     channel.OnConnectionStatusChanged(
@@ -486,10 +483,9 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtConnectionChannelRemoved:
                 {
-                    var pkt = new EvtConnectionChannelRemoved();
-                    pkt.Parse(packet);
+                    var pkt = EvtConnectionChannelRemoved.FromPacket(packet);
 
-                    if(_connectionChannels.TryRemove(pkt.ConnId, out ButtonConnectionChannel? channel))
+                    if (_connectionChannels.TryRemove(pkt.ConnId, out ButtonConnectionChannel? channel))
                         channel.OnRemoved(new ConnectionChannelRemovedEventArgs { RemovedReason = pkt.RemovedReason });
 
                     break;
@@ -499,8 +495,7 @@ namespace FliclibDotNetClient
                 case EventPacketOpCode.EvtButtonSingleOrDoubleClickEvent:
                 case EventPacketOpCode.EvtButtonSingleOrDoubleOrHoldEvent:
                 {
-                    var pkt = new EvtButtonEvent();
-                    pkt.Parse(packet);
+                    var pkt = EvtButtonClick.FromPacket(packet);
                     var channel = _connectionChannels[pkt.ConnId];
                     var eventArgs = new ButtonEventEventArgs
                     {
@@ -515,8 +510,7 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtNewVerifiedButton:
                 {
-                    var pkt = new EvtNewVerifiedButton();
-                    pkt.Parse(packet);
+                    var pkt = EvtNewVerifiedButton.FromPacket(packet);
                     NewVerifiedButton?.Invoke(
                     this,
                     new NewVerifiedButtonEventArgs(new(this, pkt.BdAddr)));
@@ -525,10 +519,9 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtGetInfoResponse:
                 {
-                    var pkt = new EvtGetInfoResponse();
-                    pkt.Parse(packet);
+                    var pkt = EvtGetInfoResponse.FromPacket(packet);
 
-                    if(_getInfoTaskCompletionSourceQueue.TryDequeue(
+                    if (_getInfoTaskCompletionSourceQueue.TryDequeue(
                         out TaskCompletionSource<EvtGetInfoResponse>? taskCompletionSource))
                         taskCompletionSource.TrySetResult(pkt);
 
@@ -536,8 +529,7 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtNoSpaceForNewConnection:
                 {
-                    var pkt = new EvtNoSpaceForNewConnection();
-                    pkt.Parse(packet);
+                    var pkt = EvtNoSpaceForNewConnection.FromPacket(packet);
                     NoSpaceForNewConnection?.Invoke(
                     this,
                     new SpaceForNewConnectionEventArgs
@@ -549,8 +541,7 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtGotSpaceForNewConnection:
                 {
-                    var pkt = new EvtGotSpaceForNewConnection();
-                    pkt.Parse(packet);
+                    var pkt = EvtGotSpaceForNewConnection.FromPacket(packet);
                     GotSpaceForNewConnection?.Invoke(
                     this,
                     new SpaceForNewConnectionEventArgs
@@ -562,8 +553,7 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtBluetoothControllerStateChange:
                 {
-                    var pkt = new EvtBluetoothControllerStateChange();
-                    pkt.Parse(packet);
+                    var pkt = EvtBluetoothControllerStateChange.FromPacket(packet);
                     BluetoothControllerStateChange?.Invoke(
                     this,
                     new BluetoothControllerStateChangeEventArgs { State = pkt.State });
@@ -572,18 +562,16 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtPingResponse:
                 {
-                    var pkt = new EvtPingResponse();
-                    pkt.Parse(packet);
-                    if(pingTaskCompletionSources.TryRemove(pkt.PingId, out TaskCompletionSource? tcs))
+                    var pkt = EvtPingResponse.FromPacket(packet);
+                    if (pingTaskCompletionSources.TryRemove(pkt.PingId, out TaskCompletionSource? tcs))
                         tcs.TrySetResult();
 
                     break;
                 }
                 case EventPacketOpCode.EvtGetButtonInfoResponse:
                 {
-                    var pkt = new EvtGetButtonInfoResponse();
-                    pkt.Parse(packet);
-                    if(_getButtonInfoTaskCompletionSources.TryRemove(
+                    var pkt = EvtGetButtonInfoResponse.FromPacket(packet);
+                    if (_getButtonInfoTaskCompletionSources.TryRemove(
                         pkt.BdAddr,
                         out TaskCompletionSource<EvtGetButtonInfoResponse>? taskCompletionSource))
                         taskCompletionSource.TrySetResult(pkt);
@@ -592,8 +580,7 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtScanWizardFoundPrivateButton:
                 {
-                    var pkt = new EvtScanWizardFoundPrivateButton();
-                    pkt.Parse(packet);
+                    var pkt = EvtScanWizardFoundPrivateButton.FromPacket(packet);
 
                     if (_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
                         wizard.OnFoundPrivateButton();
@@ -602,8 +589,7 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtScanWizardFoundPublicButton:
                 {
-                    var pkt = new EvtScanWizardFoundPublicButton();
-                    pkt.Parse(packet);
+                    var pkt = EvtScanWizardFoundPublicButton.FromPacket(packet);
 
                     if (_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
                         wizard.OnFoundPublicButton(new(pkt.BdAddr, pkt.Name));
@@ -612,8 +598,7 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtScanWizardButtonConnected:
                 {
-                    var pkt = new EvtScanWizardButtonConnected();
-                    pkt.Parse(packet);
+                    var pkt = EvtScanWizardButtonConnected.FromPacket(packet);
                     if (_scanWizards.TryGetValue(pkt.ScanWizardId, out ScanWizard? wizard))
                         wizard.OnButtonConnected();
 
@@ -621,8 +606,7 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtScanWizardCompleted:
                 {
-                    var pkt = new EvtScanWizardCompleted();
-                    pkt.Parse(packet);
+                    var pkt = EvtScanWizardCompleted.FromPacket(packet);
 
                     if (_scanWizards.TryRemove(pkt.ScanWizardId, out ScanWizard? wizard))
                         wizard.OnCompleted(pkt.Result);
@@ -631,10 +615,9 @@ namespace FliclibDotNetClient
                 }
                 case EventPacketOpCode.EvtButtonDeleted:
                 {
-                    var pkt = new EvtButtonDeleted();
-                    pkt.Parse(packet);
+                    var pkt = EvtButtonDeleted.FromPacket(packet);
 
-                    if(_deleteButtonTaskCompletionSources.TryRemove(
+                    if (_deleteButtonTaskCompletionSources.TryRemove(
                         pkt.BdAddr,
                         out TaskCompletionSource<EvtButtonDeleted>? tcs))
                         tcs.TrySetResult(pkt);

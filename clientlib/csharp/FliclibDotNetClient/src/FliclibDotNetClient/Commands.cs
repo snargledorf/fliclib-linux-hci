@@ -32,21 +32,19 @@ namespace FliclibDotNetClient
         {
             MemoryStream packetData = new();
 
-            Write(new BinaryWriter(packetData));
+            WriteBody(new BinaryWriter(packetData));
 
             return new FlicPacket((byte)Opcode, packetData.ToArray());
         }
 
-        protected abstract void Write(BinaryWriter writer);
+        protected virtual void WriteBody(BinaryWriter writer)
+        {
+        }
     }
 
     internal class CmdGetInfo : FlicCommand
     {
         protected override CommandOpCode Opcode => CommandOpCode.CmdGetInfo;
-
-        protected override void Write(BinaryWriter writer)
-        {
-        }
     }
 
     internal class CmdCreateScanner : FlicCommand
@@ -55,7 +53,7 @@ namespace FliclibDotNetClient
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdCreateScanner;
 
-        protected override void Write(BinaryWriter writer)
+        protected override void WriteBody(BinaryWriter writer)
         {
             writer.Write(ScanId);
         }
@@ -67,7 +65,7 @@ namespace FliclibDotNetClient
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdRemoveScanner;
 
-        protected override void Write(BinaryWriter writer)
+        protected override void WriteBody(BinaryWriter writer)
         {
             writer.Write(ScanId);
         }
@@ -82,7 +80,7 @@ namespace FliclibDotNetClient
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdCreateConnectionChannel;
 
-        protected override void Write(BinaryWriter writer)
+        protected override void WriteBody(BinaryWriter writer)
         {
             writer.Write(ConnId);
             writer.Write(BdAddr);
@@ -97,7 +95,7 @@ namespace FliclibDotNetClient
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdRemoveConnectionChannel;
 
-        protected override void Write(BinaryWriter writer)
+        protected override void WriteBody(BinaryWriter writer)
         {
             writer.Write(ConnId);
         }
@@ -109,7 +107,7 @@ namespace FliclibDotNetClient
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdForceDisconnect;
 
-        protected override void Write(BinaryWriter writer)
+        protected override void WriteBody(BinaryWriter writer)
         {
             writer.Write(BdAddr);
         }
@@ -123,7 +121,7 @@ namespace FliclibDotNetClient
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdChangeModeParameters;
 
-        protected override void Write(BinaryWriter writer)
+        protected override void WriteBody(BinaryWriter writer)
         {
             writer.Write(ConnId);
             writer.Write((byte)LatencyMode);
@@ -137,7 +135,7 @@ namespace FliclibDotNetClient
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdPing;
 
-        protected override void Write(BinaryWriter writer)
+        protected override void WriteBody(BinaryWriter writer)
         {
             writer.Write(PingId);
         }
@@ -149,7 +147,7 @@ namespace FliclibDotNetClient
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdGetButtonInfo;
 
-        protected override void Write(BinaryWriter writer)
+        protected override void WriteBody(BinaryWriter writer)
         {
             writer.Write(BdAddr);
         }
@@ -161,7 +159,7 @@ namespace FliclibDotNetClient
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdCreateScanWizard;
 
-        protected override void Write(BinaryWriter writer)
+        protected override void WriteBody(BinaryWriter writer)
         {
             writer.Write(ScanWizardId);
         }
@@ -173,7 +171,7 @@ namespace FliclibDotNetClient
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdCancelScanWizard;
 
-        protected override void Write(BinaryWriter writer)
+        protected override void WriteBody(BinaryWriter writer)
         {
             writer.Write(ScanWizardId);
         }
@@ -185,7 +183,7 @@ namespace FliclibDotNetClient
 
         protected override CommandOpCode Opcode => CommandOpCode.CmdDeleteButton;
 
-        protected override void Write(BinaryWriter writer)
+        protected override void WriteBody(BinaryWriter writer)
         {
             writer.Write(BdAddr);
         }

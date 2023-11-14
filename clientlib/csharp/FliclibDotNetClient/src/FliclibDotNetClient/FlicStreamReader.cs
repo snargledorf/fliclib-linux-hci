@@ -11,13 +11,13 @@ using System.Threading.Tasks;
 
 namespace FliclibDotNetClient
 {
-    internal class FlicPacketReader
+    internal class FlicStreamReader
     {
         private readonly byte[] lengthReadBytes = new byte[2];
 
         private readonly Stream backingStream;
 
-        public FlicPacketReader(Stream stream)
+        public FlicStreamReader(Stream stream)
         {
             backingStream = stream ?? throw new ArgumentNullException(nameof(stream), $"{nameof(stream)} is null.");
         }
