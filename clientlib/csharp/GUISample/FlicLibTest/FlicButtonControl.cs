@@ -88,9 +88,13 @@ namespace FlicLibTest
             }
         }
 
-        private async void btnDisconnect_Click(object sender, EventArgs e)
+        private async void btnDelete_Click(object sender, EventArgs e)
         {
-            await button.DisconnectAsync();
+            await button.DeleteAsync();
+
+            this.Parent.Controls.Remove(this);
+
+            this.Dispose();
         }
     }
 }

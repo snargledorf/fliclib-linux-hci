@@ -32,7 +32,7 @@
             lblStatus = new System.Windows.Forms.Label();
             pictureBox = new System.Windows.Forms.PictureBox();
             chkListen = new System.Windows.Forms.CheckBox();
-            btnDisconnect = new System.Windows.Forms.Button();
+            btnDelete = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox).BeginInit();
             SuspendLayout();
             // 
@@ -71,28 +71,28 @@
             chkListen.Appearance = System.Windows.Forms.Appearance.Button;
             chkListen.Location = new System.Drawing.Point(5, 43);
             chkListen.Name = "chkListen";
-            chkListen.Size = new System.Drawing.Size(62, 25);
+            chkListen.Size = new System.Drawing.Size(66, 25);
             chkListen.TabIndex = 4;
             chkListen.Text = "Listen";
             chkListen.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             chkListen.UseVisualStyleBackColor = true;
             chkListen.CheckedChanged += chkListen_CheckedChanged;
             // 
-            // btnDisconnect
+            // btnDelete
             // 
-            btnDisconnect.Location = new System.Drawing.Point(73, 45);
-            btnDisconnect.Name = "btnDisconnect";
-            btnDisconnect.Size = new System.Drawing.Size(75, 23);
-            btnDisconnect.TabIndex = 5;
-            btnDisconnect.Text = "Disconnect";
-            btnDisconnect.UseVisualStyleBackColor = true;
-            btnDisconnect.Click += btnDisconnect_Click;
+            btnDelete.Location = new System.Drawing.Point(77, 43);
+            btnDelete.Name = "btnDelete";
+            btnDelete.Size = new System.Drawing.Size(71, 25);
+            btnDelete.TabIndex = 5;
+            btnDelete.Text = "Delete";
+            btnDelete.UseVisualStyleBackColor = true;
+            btnDelete.Click += btnDelete_Click;
             // 
             // FlicButtonControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            Controls.Add(btnDisconnect);
+            Controls.Add(btnDelete);
             Controls.Add(chkListen);
             Controls.Add(pictureBox);
             Controls.Add(lblStatus);
@@ -111,6 +111,6 @@
         public System.Windows.Forms.Label lblStatus;
         public System.Windows.Forms.PictureBox pictureBox;
         private System.Windows.Forms.CheckBox chkListen;
-        private System.Windows.Forms.Button btnDisconnect;
+        private System.Windows.Forms.Button btnDelete;
     }
 }
