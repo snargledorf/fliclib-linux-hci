@@ -50,9 +50,9 @@ namespace FlicLibTest
                         else
                             _flicClient = new FlicClient(txtServer.Text);
 
-                        _flicClient.BluetoothControllerStateChange += (o, args) => lblBluetoothStatus.Text = "Bluetooth controller status: " + args.State.ToString();
+                        _flicClient.BluetoothControllerStateChange += (_, state) => lblBluetoothStatus.Text = "Bluetooth controller status: " + state.ToString();
 
-                        _flicClient.NewVerifiedButton += async (o, args) => await GotButton(args.Button);
+                        _flicClient.NewVerifiedButton += async (_, button) => await GotButton(button);
 
                         _flicClient.OnDisconnect += (_, _) => OnClientDisconnected();
 

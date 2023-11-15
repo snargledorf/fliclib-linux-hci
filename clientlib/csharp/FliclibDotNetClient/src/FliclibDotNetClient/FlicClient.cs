@@ -23,25 +23,9 @@ namespace FliclibDotNetClient
     public record GetButtonInfoResponse(BluetoothAddress BdAddr, FlicButtonInfo ButtonInfo);
 
     /// <summary>
-    /// NewVerifiedButtonEventArgs
-    /// </summary>
-    public class NewVerifiedButtonEventArgs : EventArgs
-    {
-        public NewVerifiedButtonEventArgs(FlicButton button)
-        {
-            Button = button;
-        }
-
-        /// <summary>
-        /// Bluetooth device address for new verified button
-        /// </summary>
-        public FlicButton Button { get; }
-    }
-
-    /// <summary>
     /// SpaceForNewConnectionEventArgs
     /// </summary>
-    public class SpaceForNewConnectionEventArgs : EventArgs
+    public class SpaceForNewConnectionEventArgs
     {
         /// <summary>
         /// The number of max concurrently connected buttons
@@ -50,20 +34,9 @@ namespace FliclibDotNetClient
     }
 
     /// <summary>
-    /// BluetoothControllerStateChangeEventArgs
-    /// </summary>
-    public class BluetoothControllerStateChangeEventArgs : EventArgs
-    {
-        /// <summary>
-        /// The new state of the Bluetooth controller
-        /// </summary>
-        public BluetoothControllerState State { get; internal set; }
-    }
-
-    /// <summary>
     /// ButtonDeletedEventArgs
     /// </summary>
-    public class ButtonDeletedEventArgs : EventArgs
+    public class ButtonDeletedEventArgs
     {
         /// <summary>
         /// Bluetooth device address of removed button
@@ -121,13 +94,13 @@ namespace FliclibDotNetClient
         /// <summary>
         /// Raised when a new button is verified at the server (initiated by any client)
         /// </summary>
-        public event EventHandler<NewVerifiedButtonEventArgs>? NewVerifiedButton;
+        public event EventHandler<FlicButton>? NewVerifiedButton;
         
         /// <summary>
         /// Raised when the Bluetooth controller status changed, for example when it is plugged or unplugged or for any other reason becomes available / unavailable.
         /// During the controller is Detached, no scan events or button events will be received.
         /// </summary>
-        public event EventHandler<BluetoothControllerStateChangeEventArgs>? BluetoothControllerStateChange;
+        public event EventHandler<BluetoothControllerState>? BluetoothControllerStateChange;
 
         /// <summary>
         /// This event will be raised when the maximum number of concurrent connections has been reached (only sent by the Linux server implementation).
@@ -513,7 +486,7 @@ namespace FliclibDotNetClient
                     var pkt = EvtNewVerifiedButton.FromPacket(packet);
                     NewVerifiedButton?.Invoke(
                     this,
-                    new NewVerifiedButtonEventArgs(new(this, pkt.BdAddr)));
+                    new(this, pkt.BdAddr));
 
                     break;
                 }
@@ -556,7 +529,7 @@ namespace FliclibDotNetClient
                     var pkt = EvtBluetoothControllerStateChange.FromPacket(packet);
                     BluetoothControllerStateChange?.Invoke(
                     this,
-                    new BluetoothControllerStateChangeEventArgs { State = pkt.State });
+                    pkt.State);
 
                     break;
                 }
@@ -620,10 +593,11 @@ namespace FliclibDotNetClient
                     if (_deleteButtonTaskCompletionSources.TryRemove(
                         pkt.BdAddr,
                         out TaskCompletionSource<EvtButtonDeleted>? tcs))
-                        tcs.TrySetResult(pkt);
+                        {
+                            tcs.TrySetResult(pkt);
+                        }
 
-                    // TODO Delete event on FlicButton class
-                    ButtonDeleted?.Invoke(
+                        ButtonDeleted?.Invoke(
                     this,
                     new ButtonDeletedEventArgs { BdAddr = pkt.BdAddr, DeletedByThisClient = pkt.DeletedByThisClient });
 
@@ -673,18 +647,9 @@ namespace FliclibDotNetClient
                     tcpClient.Close();
                 }
 
-                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-                // TODO: set large fields to null
                 disposedValue = true;
             }
         }
-
-        // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
-        // ~FlicClient()
-        // {
-        //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-        //     Dispose(disposing: false);
-        // }
 
         public void Dispose()
         {
